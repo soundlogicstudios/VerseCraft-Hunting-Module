@@ -3,12 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>VerseCraft Hunting Module - Prototype</title>
+  <title>Oregon Trail Hunt - Prototype</title>
 
-  <!-- Confirmed location -->
   <link rel="stylesheet" href="styles/hunt.css" />
-
-  <!-- Rifle overlay offset knob -->
   <link rel="stylesheet" href="styles/overlays/rifle_overlay.css" />
 </head>
 
@@ -18,30 +15,30 @@
 
     <div class="layer layer-targets" aria-hidden="true">
       <img id="demoTarget" class="target-sprite"
-           src="assets/targets/squirrel-right-facing.webp"
-           alt="" draggable="false" />
+           src="assets/targets/squirrel_right.webp" alt="" draggable="false" />
     </div>
 
     <div class="layer layer-ui" aria-hidden="true">
       <div id="reticle" class="reticle" aria-hidden="true"></div>
 
       <div class="rifle-overlay" aria-hidden="true">
-        <!-- CHANGE THIS to your real rifle overlay file -->
-        <img id="rifleOverlayImg" src="assets/ui/rifle-overlay.webp" alt="" draggable="false" />
+        <img src="assets/overlays/rifle-overlay.webp" alt="" draggable="false" />
       </div>
     </div>
 
+    <!-- Controls (NO debug visible by default) -->
     <div class="layer layer-controls" aria-label="Controls">
       <button id="fireBtn" class="btn-fire" type="button">FIRE</button>
 
-      <div class="debug-row" aria-label="Debug Controls">
-        <button id="resetBtn" class="btn-secondary" type="button">Reset Target</button>
-        <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
-        <span id="hudText" class="hud-text">BOOTING…</span>
+      <!-- Debug row: hidden unless ?debug=1 -->
+      <div id="debugRow" class="debug-row" hidden aria-label="Debug Controls">
+        <button id="rifleUpBtn" class="btn-secondary" type="button">Rifle Up</button>
+        <button id="rifleDownBtn" class="btn-secondary" type="button">Rifle Down</button>
+        <span id="hudText" class="hud-text">Debug</span>
       </div>
     </div>
 
-    <!-- Modal: CLOSED by default -->
+    <!-- Modal -->
     <div id="modalBackdrop" class="modal-backdrop modal-closed">
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
@@ -50,24 +47,16 @@
 
         <div class="modal-body">
           <p id="huntOutcome" class="modal-outcome">Outcome: —</p>
-
-          <div class="modal-grid" role="group" aria-label="Hunt Summary">
+          <div class="modal-grid">
             <div class="row"><div class="label">Meat gained</div><div id="meatValue" class="value">—</div></div>
             <div class="row"><div class="label">Ammunition used</div><div id="ammoValue" class="value">—</div></div>
             <div class="row"><div class="label">Time passed</div><div id="daysValue" class="value">—</div></div>
-
-            <div id="injuryRow" class="row" style="display:none;">
-              <div class="label">Injury</div><div id="injuryValue" class="value">—</div>
-            </div>
-            <div id="noteRow" class="row" style="display:none;">
-              <div class="label">Note</div><div id="noteValue" class="value">—</div>
-            </div>
           </div>
         </div>
 
         <div class="modal-footer">
           <button id="continueBtn" class="btn-primary" type="button"
-                  onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
+            onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
             Continue
           </button>
         </div>
@@ -79,13 +68,8 @@
     const el = (id) => document.getElementById(id);
 
     const fireBtn = el("fireBtn");
-    const resetBtn = el("resetBtn");
-    const toggleGuidesBtn = el("toggleGuidesBtn");
-    const hudText = el("hudText");
-
     const demoTarget = el("demoTarget");
     const reticle = el("reticle");
-    const rifleOverlayImg = el("rifleOverlayImg");
 
     const modalBackdrop = el("modalBackdrop");
     const continueBtn = el("continueBtn");
@@ -94,169 +78,75 @@
     const meatValue = el("meatValue");
     const ammoValue = el("ammoValue");
     const daysValue = el("daysValue");
-    const injuryRow = el("injuryRow");
-    const injuryValue = el("injuryValue");
-    const noteRow = el("noteRow");
-    const noteValue = el("noteValue");
 
-    // Kill iOS rubberband gestures
+    const debugRow = el("debugRow");
+    const rifleUpBtn = el("rifleUpBtn");
+    const rifleDownBtn = el("rifleDownBtn");
+    const hudText = el("hudText");
+
+    // iOS: prevent rubberband/scroll gestures
     document.addEventListener("touchmove", (e) => e.preventDefault(), { passive:false });
 
-    // Rifle overlay vertical offset knob:
-    // + moves DOWN, - moves UP (reticle stays fixed)
-    document.documentElement.style.setProperty("--vc-rifle-offset-y", "28px");
-
+    // Modal controls (class-driven)
     function openModal(payload){
       huntOutcome.textContent = `Outcome: ${payload.outcome}`;
       meatValue.textContent = payload.meat;
       ammoValue.textContent = payload.ammo;
       daysValue.textContent = payload.days;
 
-      if (payload.injury){
-        injuryValue.textContent = payload.injury;
-        injuryRow.style.display = "flex";
-      } else injuryRow.style.display = "none";
-
-      if (payload.note){
-        noteValue.textContent = payload.note;
-        noteRow.style.display = "flex";
-      } else noteRow.style.display = "none";
-
       modalBackdrop.classList.remove("modal-closed");
       modalBackdrop.classList.add("modal-open");
     }
-
     function closeModal(){
       modalBackdrop.classList.remove("modal-open");
       modalBackdrop.classList.add("modal-closed");
     }
-
     window.vc_hunt_close_modal = closeModal;
+    continueBtn.addEventListener("click", closeModal);
     closeModal();
 
-    // Debug image loading (prints resolved URL on failure)
-    function attachImgDebug(imgEl, label){
-      if (!imgEl) return;
-      imgEl.addEventListener("load", () => {});
-      imgEl.addEventListener("error", () => {
-        hudText.textContent = `IMG ERROR: ${label}`;
-        console.error(`[IMG ERROR] ${label}`, {
-          srcAttr: imgEl.getAttribute("src"),
-          resolvedSrc: imgEl.currentSrc || imgEl.src,
-          baseURI: document.baseURI
-        });
-      });
-    }
-    attachImgDebug(demoTarget, "demoTarget");
-    attachImgDebug(rifleOverlayImg, "rifleOverlay");
-
-    /* =========================================================
-       TARGET FACING (THIS IS THE CHANGE YOU ASKED FOR)
-       ========================================================= */
-
-    // Right-facing = moving left -> right
-    // Left-facing  = moving right -> left
-    const TARGET_SPRITES = {
-      squirrel: {
-        left:  "assets/targets/squirrel-left-facing.webp",
-        right: "assets/targets/squirrel-right-facing.webp"
-      },
-      rabbit: {
-        left:  "assets/targets/rabbit-left-facing.webp",
-        right: "assets/targets/rabbit-right-facing.webp"
-      },
-      deer: {
-        left:  "assets/targets/deer-left-facing.webp",
-        right: "assets/targets/deer-right-facing.webp"
-      },
-      bear: {
-        left:  "assets/targets/bear-left-facing.webp",
-        right: "assets/targets/bear-right-facing.webp"
-      }
-    };
-
-    // For now, demo uses squirrel. We’ll randomize animals next step.
-    let currentAnimal = "squirrel";
-
-    function setTargetFacingForDirection(dir){
-      // dir === 1 means moving right, show right-facing
-      const facing = (dir === 1) ? "right" : "left";
-      const src = TARGET_SPRITES[currentAnimal][facing];
-      if (demoTarget.getAttribute("src") !== src) {
-        demoTarget.setAttribute("src", src);
-      }
-    }
-
-    /* =========================================================
-       Demo target motion
-       ========================================================= */
-
-    let animRaf = 0;
-    let tStart = 0;
-    let direction = 1;
-    let speedPxPerSec = 420;
+    // Demo target motion (placeholder)
+    let raf = 0;
+    let last = 0;
     let x = -200;
+    let dir = 1;
+    const speed = 420;
 
     function viewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
 
-    function setTargetTrack(){
+    function setTrack(){
       const { h } = viewport();
-      const trackY = Math.round(h * 0.46);
-      demoTarget.style.top = `${trackY}px`;
+      demoTarget.style.top = `${Math.round(h*0.46)}px`;
     }
 
-    function placeTargetStart(){
+    function placeStart(){
       const { w } = viewport();
       const tw = demoTarget.getBoundingClientRect().width || 200;
-      x = (direction === 1) ? (-tw - 40) : (w + 40);
+      x = (dir === 1) ? (-tw - 40) : (w + 40);
       demoTarget.style.transform = `translate3d(${x}px,0,0)`;
-      setTargetFacingForDirection(direction); // ✅ ensure facing matches entry direction
     }
 
-    function startMotion(){
-      cancelAnimationFrame(animRaf);
-      tStart = performance.now();
-      setTargetTrack();
-      placeTargetStart();
+    function loop(t){
+      const dt = (t - last)/1000 || 0;
+      last = t;
+      x += dir * speed * dt;
+      demoTarget.style.transform = `translate3d(${x}px,0,0)`;
 
-      function tick(now){
-        const dt = (now - tStart) / 1000;
-        tStart = now;
+      const { w } = viewport();
+      const r = demoTarget.getBoundingClientRect();
+      if (dir === 1 && r.left > w + 80){ dir = -1; placeStart(); }
+      if (dir === -1 && r.right < -80){ dir = 1; placeStart(); }
 
-        x += direction * speedPxPerSec * dt;
-        demoTarget.style.transform = `translate3d(${x}px,0,0)`;
-
-        const { w } = viewport();
-        const r = demoTarget.getBoundingClientRect();
-
-        if (direction === 1 && r.left > w + 80){
-          direction = -1;
-          placeTargetStart(); // flips + resets + updates facing
-        } else if (direction === -1 && r.right < -80){
-          direction = 1;
-          placeTargetStart(); // flips + resets + updates facing
-        }
-
-        animRaf = requestAnimationFrame(tick);
-      }
-      animRaf = requestAnimationFrame(tick);
+      raf = requestAnimationFrame(loop);
     }
 
     function reticleCenterX(){
       const r = reticle.getBoundingClientRect();
-      return r.left + r.width / 2;
+      return r.left + r.width/2;
     }
-
     function targetCenterX(){
       const r = demoTarget.getBoundingClientRect();
-      return r.left + r.width / 2;
-    }
-
-    let guidesOn = false;
-    function toggleGuides(){
-      guidesOn = !guidesOn;
-      document.documentElement.classList.toggle("guides-on", guidesOn);
-      hudText.textContent = guidesOn ? "Guides ON" : "BOOT OK";
+      return r.left + r.width/2;
     }
 
     fireBtn.addEventListener("click", () => {
@@ -264,29 +154,42 @@
 
       const dx = Math.abs(targetCenterX() - reticleCenterX());
       const tw = demoTarget.getBoundingClientRect().width || 200;
-      const deltaPct = (dx / tw) * 100;
+      const pct = (dx/tw)*100;
 
       let outcome = "Miss";
-      if (deltaPct <= 10) outcome = "Perfect hit";
-      else if (deltaPct <= 25) outcome = "Solid hit";
-      else if (deltaPct <= 40) outcome = "Graze";
+      if (pct <= 10) outcome = "Perfect hit";
+      else if (pct <= 25) outcome = "Solid hit";
+      else if (pct <= 40) outcome = "Graze";
 
-      openModal({
-        outcome,
-        meat: outcome === "Miss" ? "0" : "—",
-        ammo: "1",
-        days: "—",
-        note: `delta ${deltaPct.toFixed(1)}%`
-      });
+      openModal({ outcome, meat: "—", ammo: "1", days: "—" });
     });
 
-    continueBtn.addEventListener("click", closeModal);
-    resetBtn.addEventListener("click", placeTargetStart);
-    toggleGuidesBtn.addEventListener("click", toggleGuides);
-    window.addEventListener("resize", setTargetTrack);
+    // Debug gate: ONLY enable when ?debug=1
+    const params = new URLSearchParams(window.location.search);
+    const debugEnabled = params.get("debug") === "1";
 
-    hudText.textContent = "BOOT OK";
-    startMotion();
+    if (debugEnabled) {
+      debugRow.hidden = false;
+
+      let rifleY = parseInt(getComputedStyle(document.documentElement)
+        .getPropertyValue("--vc-rifle-offset-y")) || 0;
+
+      function setRifleY(px){
+        document.documentElement.style.setProperty("--vc-rifle-offset-y", `${px}px`);
+        hudText.textContent = `Rifle Y: ${px}px`;
+      }
+
+      setRifleY(rifleY);
+
+      rifleUpBtn.addEventListener("click", () => { rifleY -= 10; setRifleY(rifleY); });
+      rifleDownBtn.addEventListener("click", () => { rifleY += 10; setRifleY(rifleY); });
+    }
+
+    // Boot
+    setTrack();
+    placeStart();
+    raf = requestAnimationFrame(loop);
+    window.addEventListener("resize", setTrack);
   </script>
 </body>
 </html>
