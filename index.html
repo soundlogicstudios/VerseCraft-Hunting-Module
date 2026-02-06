@@ -1,16 +1,3 @@
-<!-- index.html
-VerseCraft Hunting Module (Prototype Scaffold)
-Phase-based build plan + test checks included at bottom.
-
-ASSET PATHS:
-- Update the CSS variables in styles/hunt.css to point at your actual files:
-  --hunt-bg-url
-  --rifle-overlay-url
-  --reticle-url (optional)
-
-TARGETS:
-- This scaffold includes a single demo target (you’ll wire your full spawn table later).
--->
 <!doctype html>
 <html lang="en">
 <head>
@@ -22,12 +9,9 @@ TARGETS:
 
 <body>
   <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
-    <!-- Background layer -->
     <div class="layer layer-bg" aria-hidden="true"></div>
 
-    <!-- Targets layer -->
     <div id="targetsLayer" class="layer layer-targets" aria-hidden="true">
-      <!-- Demo target (Phase 1/2). Replace src with one of your target PNGs -->
       <img
         id="demoTarget"
         class="target-sprite"
@@ -37,20 +21,14 @@ TARGETS:
       />
     </div>
 
-    <!-- UI layer (reticle + overlay rifle) -->
     <div class="layer layer-ui" aria-hidden="true">
-      <!-- Static reticle (kept separate from rifle overlay so you can swap styles later) -->
       <div id="reticle" class="reticle" aria-hidden="true"></div>
-
-      <!-- Rifle/hands overlay PNG on transparency -->
       <div class="rifle-overlay" aria-hidden="true"></div>
     </div>
 
-    <!-- Controls layer -->
     <div class="layer layer-controls" aria-label="Controls">
       <button id="fireBtn" class="btn-fire" type="button">FIRE</button>
 
-      <!-- Debug row (safe to remove later) -->
       <div class="debug-row" aria-label="Debug Controls">
         <button id="resetBtn" class="btn-secondary" type="button">Reset Target</button>
         <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
@@ -82,7 +60,7 @@ TARGETS:
               <div id="daysValue" class="value">—</div>
             </div>
 
-            <!-- Optional lines (shown only when populated) -->
+            <!-- Optional rows: hidden unless populated -->
             <div id="injuryRow" class="row row-optional" hidden>
               <div class="label">Injury</div>
               <div id="injuryValue" class="value">—</div>
@@ -103,10 +81,10 @@ TARGETS:
 
   <script>
     // ------------------------------------------------------------
-    // Phase Scaffold JS (kept tiny on purpose)
-    // Phase 1: verify layers + assets render + modal shows
-    // Phase 2: basic target motion + fire -> shows modal
-    // Phase 3+: replace this with real hunt_runtime + rules + payload
+    // Phase Scaffold JS (intentionally small)
+    // Fixes:
+    // - Modal is FORCE-CLOSED on boot (Safari-safe)
+    // - Modal open/close uses class + hidden attribute
     // ------------------------------------------------------------
 
     const el = (id) => document.getElementById(id);
@@ -117,7 +95,6 @@ TARGETS:
     const hudText = el("hudText");
 
     const demoTarget = el("demoTarget");
-    const targetsLayer = el("targetsLayer");
     const reticle = el("reticle");
 
     const modalBackdrop = el("modalBackdrop");
@@ -134,34 +111,28 @@ TARGETS:
 
     let guidesOn = false;
 
-    // Demo motion parameters (Phase 2 placeholder)
+    // Demo motion parameters
     let animRaf = 0;
     let tStart = 0;
-    let direction = 1; // 1 = left->right, -1 = right->left
-    let speedPxPerSec = 420; // tune later by animal
+    let direction = 1; // 1 = L->R, -1 = R->L
+    let speedPxPerSec = 420;
     let x = -200;
 
     function viewport() {
       return { w: window.innerWidth, h: window.innerHeight };
     }
 
+    function setTargetTrack() {
+      const { h } = viewport();
+      const trackY = Math.round(h * 0.46);
+      demoTarget.style.top = `${trackY}px`;
+    }
+
     function placeTargetStart() {
       const { w } = viewport();
       const targetW = demoTarget.getBoundingClientRect().width || 200;
-
-      // Start offscreen based on direction
-      if (direction === 1) x = -targetW - 40;
-      else x = w + 40;
-
+      x = (direction === 1) ? (-targetW - 40) : (w + 40);
       demoTarget.style.transform = `translate3d(${x}px, 0, 0)`;
-    }
-
-    function setTargetTrack() {
-      // Fixed single horizontal track (locked design).
-      // You can later vary trackY by region/scene, but keep it simple for timing clarity.
-      const { h } = viewport();
-      const trackY = Math.round(h * 0.46); // slightly below center
-      demoTarget.style.top = `${trackY}px`;
     }
 
     function startDemoMotion() {
@@ -175,12 +146,11 @@ TARGETS:
         tStart = now;
 
         x += direction * speedPxPerSec * dt;
-
         demoTarget.style.transform = `translate3d(${x}px, 0, 0)`;
 
-        // Reset when fully offscreen
         const { w } = viewport();
         const rect = demoTarget.getBoundingClientRect();
+
         if (direction === 1 && rect.left > w + 80) {
           direction = -1;
           placeTargetStart();
@@ -196,7 +166,6 @@ TARGETS:
     }
 
     function reticleCenterX() {
-      // Reticle is centered via CSS; we use its bounding box for exact math later.
       const r = reticle.getBoundingClientRect();
       return r.left + r.width / 2;
     }
@@ -207,7 +176,6 @@ TARGETS:
     }
 
     function openModal(payload) {
-      // Minimal binding. Later this becomes your real "hunt_result" payload.
       huntOutcome.textContent = `Outcome: ${payload.outcome}`;
       meatValue.textContent = payload.meat;
       ammoValue.textContent = payload.ammo;
@@ -227,11 +195,19 @@ TARGETS:
         noteRow.hidden = true;
       }
 
+      // Show modal deterministically
       modalBackdrop.hidden = false;
+      modalBackdrop.classList.add("is-open");
     }
 
     function closeModal() {
+      modalBackdrop.classList.remove("is-open");
       modalBackdrop.hidden = true;
+    }
+
+    function forceCloseModalOnBoot() {
+      // Safari/iOS sanity: ensure it starts closed no matter what.
+      closeModal();
     }
 
     function toggleGuides() {
@@ -240,19 +216,7 @@ TARGETS:
       hudText.textContent = guidesOn ? "Guides ON" : "Guides OFF";
     }
 
-    // Phase 1 check: assets visible
-    function phase1Check() {
-      console.log("[Phase 1] Check: background visible, rifle overlay visible, reticle centered, demo target visible.");
-    }
-
-    // Phase 2 check: motion + fire interaction + modal shows
-    function phase2Check() {
-      console.log("[Phase 2] Check: target moves across reticle; clicking FIRE opens modal with placeholder values.");
-    }
-
     fireBtn.addEventListener("click", () => {
-      // Placeholder “hit scoring” preview:
-      // We’ll replace with timing-window logic later.
       const dx = Math.abs(targetCenterX() - reticleCenterX());
       const targetW = demoTarget.getBoundingClientRect().width || 200;
       const deltaPct = (dx / targetW) * 100;
@@ -264,7 +228,7 @@ TARGETS:
 
       openModal({
         outcome,
-        meat: outcome === "Miss" ? "0" : "—",  // we’ll bind FU/pounds later
+        meat: outcome === "Miss" ? "0" : "—",
         ammo: "1",
         days: "—",
         injury: "",
@@ -272,65 +236,23 @@ TARGETS:
       });
     });
 
-    continueBtn.addEventListener("click", () => {
-      closeModal();
-    });
+    continueBtn.addEventListener("click", closeModal);
 
     resetBtn.addEventListener("click", () => {
-      // Reset target and keep it moving
       placeTargetStart();
     });
 
     toggleGuidesBtn.addEventListener("click", toggleGuides);
 
-    window.addEventListener("resize", () => {
-      setTargetTrack();
-    });
+    window.addEventListener("resize", setTargetTrack);
 
-    // Init
-    phase1Check();
-    phase2Check();
-    startDemoMotion();
-
-    // ESC closes modal (desktop convenience)
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !modalBackdrop.hidden) closeModal();
     });
+
+    // Boot
+    forceCloseModalOnBoot();
+    startDemoMotion();
   </script>
-
-  <!--
-  ===========================
-  PHASE CHECKLIST (LOCKED)
-  ===========================
-
-  Phase 1: Visual Scaffold
-  [ ] Background loads and fills screen (no stretching artifacts)
-  [ ] Rifle overlay PNG aligns correctly (hands + barrel toward center)
-  [ ] Reticle is centered and static
-  [ ] Modal opens and overlays everything (no click-through)
-  [ ] Mobile safe-area looks OK (iOS notch)
-
-  Phase 2: Motion + Input
-  [ ] One target sprite traverses left->right and right->left repeatedly
-  [ ] FIRE triggers immediate audio (later) + hit evaluation
-  [ ] Modal shows outcome + placeholders
-
-  Phase 3: Rules Engine
-  [ ] Timing window bands: Perfect/Solid/Graze/Miss
-  [ ] Animal definitions: squirrel/rabbit/deer/bear (+ attack bear)
-  [ ] Ammo decrement and bear ammo=2
-  [ ] Yield rules (FU or pounds) + time advanced
-  [ ] Injury chance for bear bad hit only
-
-  Phase 4: Spawn Table + Run Control
-  [ ] Hunt run spawns N passes; one shot per pass
-  [ ] Stop conditions: ammo low / injury / time cap / player stop
-  [ ] End-of-hunt payload emitted
-
-  Phase 5: Module Packaging
-  [ ] Export start_hunt(container, config) returning Promise<payload>
-  [ ] No global state leakage
-  [ ] Asset paths configurable
-  -->
 </body>
 </html>
