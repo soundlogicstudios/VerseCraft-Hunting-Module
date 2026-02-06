@@ -2,182 +2,262 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>VerseCraft Target Debug</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>VerseCraft Hunting Module - Prototype</title>
 
-  <!-- IMPORTANT:
-       If your project uses a <base href="...">, it can break relative asset paths.
-       For this debug harness, DO NOT use <base>.
-  -->
+  <!-- Your existing hunt styling -->
+  <link rel="stylesheet" href="styles/hunt.css" />
 
-  <!-- Rifle overlay positioning CSS -->
+  <!-- Rifle overlay positioning (vertical offset knob) -->
   <link rel="stylesheet" href="styles/overlays/rifle_overlay.css" />
-
-  <style>
-    /* Debug seen-it-all layer */
-    body {
-      margin: 0;
-      background: #101010;
-      color: #fff;
-      font-family: -apple-system, system-ui, sans-serif;
-      overflow: hidden;
-    }
-
-    /* This is the ONLY container we use.
-       It must be positioned so absolute overlays behave predictably. */
-    #game {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background: radial-gradient(circle at 50% 40%, #1b1b1b 0%, #0a0a0a 55%, #000 100%);
-    }
-
-    /* Fixed reticule (DO NOT MOVE IT IN JS) */
-    #reticule {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 48px;
-      height: 48px;
-      transform: translate(-50%, -50%);
-      z-index: 60;
-      pointer-events: none;
-    }
-    #reticule::before,
-    #reticule::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(255,255,255,0.9);
-    }
-    #reticule::before { width: 2px; height: 48px; }
-    #reticule::after { width: 48px; height: 2px; }
-
-    /* Debug HUD */
-    #hud {
-      position: absolute;
-      left: 10px;
-      bottom: 10px;
-      z-index: 9999;
-      background: rgba(0,0,0,0.7);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 12px;
-      line-height: 1.35;
-      max-width: 80vw;
-      white-space: pre-wrap;
-      pointer-events: none;
-    }
-
-    /* Tap to shoot area (so you can test without your full input system) */
-    #tapToShoot {
-      position: absolute;
-      inset: 0;
-      z-index: 70;
-      background: transparent;
-      border: 0;
-      padding: 0;
-      margin: 0;
-      cursor: crosshair;
-    }
-  </style>
 </head>
 
 <body>
-  <div id="game">
-    <!-- This full-screen button is ONLY for debug testing shots -->
-    <button id="tapToShoot" aria-label="Tap to shoot"></button>
+  <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
+    <div class="layer layer-bg" aria-hidden="true"></div>
 
-    <!-- Fixed reticule -->
-    <div id="reticule"></div>
-
-    <!-- Rifle overlay image (YOUR overlay file path goes here) -->
-    <div id="rifle-overlay" class="rifle-overlay">
-      <!-- Use your actual rifle overlay path -->
-      <img src="assets/ui/rifle-overlay.webp" alt="Rifle overlay" />
+    <div class="layer layer-targets" aria-hidden="true">
+      <!-- Demo target (verify this exact file exists) -->
+      <img id="demoTarget" class="target-sprite"
+           src="assets/targets/squirrel-right-facing.webp"
+           alt="" draggable="false" />
     </div>
 
-    <!-- Debug HUD -->
-    <div id="hud">HUD: waiting…</div>
-  </div>
+    <div class="layer layer-ui" aria-hidden="true">
+      <div id="reticle" class="reticle" aria-hidden="true"></div>
 
-  <!-- Target runner (the JS file you added) -->
-  <script src="src/overlays/target_runner.js"></script>
+      <!-- Rifle overlay MUST contain an image or it will be invisible -->
+      <div class="rifle-overlay" aria-hidden="true">
+        <!-- CHANGE THIS to your real rifle overlay path -->
+        <img id="rifleOverlayImg"
+             src="assets/ui/rifle-overlay.webp"
+             alt="" draggable="false" />
+      </div>
+    </div>
+
+    <div class="layer layer-controls" aria-label="Controls">
+      <button id="fireBtn" class="btn-fire" type="button">FIRE</button>
+
+      <div class="debug-row" aria-label="Debug Controls">
+        <button id="resetBtn" class="btn-secondary" type="button">Reset Target</button>
+        <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
+        <span id="hudText" class="hud-text">BOOTING…</span>
+      </div>
+    </div>
+
+    <!-- Modal: CLOSED by default -->
+    <div id="modalBackdrop" class="modal-backdrop modal-closed">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-header">
+          <h2 id="modalTitle" class="modal-title">THE HUNT</h2>
+        </div>
+
+        <div class="modal-body">
+          <p id="huntOutcome" class="modal-outcome">Outcome: —</p>
+
+          <div class="modal-grid" role="group" aria-label="Hunt Summary">
+            <div class="row"><div class="label">Meat gained</div><div id="meatValue" class="value">—</div></div>
+            <div class="row"><div class="label">Ammunition used</div><div id="ammoValue" class="value">—</div></div>
+            <div class="row"><div class="label">Time passed</div><div id="daysValue" class="value">—</div></div>
+
+            <div id="injuryRow" class="row" style="display:none;">
+              <div class="label">Injury</div><div id="injuryValue" class="value">—</div>
+            </div>
+            <div id="noteRow" class="row" style="display:none;">
+              <div class="label">Note</div><div id="noteValue" class="value">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <!-- inline fallback so closing always works -->
+          <button id="continueBtn" class="btn-primary" type="button"
+                  onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
 
   <script>
-    // ===========================
-    // 1) Make rifle adjustable
-    // ===========================
-    // Example: push rifle DOWN 36px (positive down, negative up)
-    document.documentElement.style.setProperty("--vc-rifle-offset-y", "36px");
+    const el = (id) => document.getElementById(id);
 
-    // ===========================
-    // 2) Start target runner
-    //    IMPORTANT: mount into #game, not body
-    // ===========================
-    // If your target_runner.js has mount_selector hardcoded to "body",
-    // update it to "#game" in CONFIG.
-    // Or do this quick override if you exposed CONFIG (if not, edit the file):
-    if (window.vc_targets && typeof window.vc_targets.start === "function") {
-      window.vc_targets.start();
-    } else {
-      console.error("vc_targets not found. Check script src path.");
+    const fireBtn = el("fireBtn");
+    const resetBtn = el("resetBtn");
+    const toggleGuidesBtn = el("toggleGuidesBtn");
+    const hudText = el("hudText");
+
+    const demoTarget = el("demoTarget");
+    const reticle = el("reticle");
+    const rifleOverlayImg = el("rifleOverlayImg");
+
+    const modalBackdrop = el("modalBackdrop");
+    const continueBtn = el("continueBtn");
+
+    const huntOutcome = el("huntOutcome");
+    const meatValue = el("meatValue");
+    const ammoValue = el("ammoValue");
+    const daysValue = el("daysValue");
+    const injuryRow = el("injuryRow");
+    const injuryValue = el("injuryValue");
+    const noteRow = el("noteRow");
+    const noteValue = el("noteValue");
+
+    // Kill iOS rubberband gestures
+    document.addEventListener("touchmove", (e) => e.preventDefault(), { passive:false });
+
+    // Rifle overlay vertical offset knob:
+    // + moves DOWN, - moves UP (reticle stays fixed)
+    document.documentElement.style.setProperty("--vc-rifle-offset-y", "28px");
+
+    function openModal(payload){
+      huntOutcome.textContent = `Outcome: ${payload.outcome}`;
+      meatValue.textContent = payload.meat;
+      ammoValue.textContent = payload.ammo;
+      daysValue.textContent = payload.days;
+
+      if (payload.injury){
+        injuryValue.textContent = payload.injury;
+        injuryRow.style.display = "flex";
+      } else injuryRow.style.display = "none";
+
+      if (payload.note){
+        noteValue.textContent = payload.note;
+        noteRow.style.display = "flex";
+      } else noteRow.style.display = "none";
+
+      modalBackdrop.classList.remove("modal-closed");
+      modalBackdrop.classList.add("modal-open");
     }
 
-    // ===========================
-    // 3) Debug HUD: show type + src + image errors
-    // ===========================
-    const hud = document.getElementById("hud");
-
-    function logHUD(msg) {
-      hud.textContent = msg;
+    function closeModal(){
+      modalBackdrop.classList.remove("modal-open");
+      modalBackdrop.classList.add("modal-closed");
     }
 
-    window.addEventListener("vc:target_spawn", (e) => {
-      const d = e.detail || {};
-      logHUD(
-        `SPAWN: ${d.type || "?"}\n` +
-        `dir: ${d.dir || "?"}\n` +
-        `reticule: fixed\n` +
-        `note: if you see a moving missing-image box, paths still wrong`
-      );
+    // Inline fallback hook
+    window.vc_hunt_close_modal = closeModal;
+
+    // Force closed on boot
+    closeModal();
+
+    // Debug image loading (shows exact resolved URL on failure)
+    function attachImgDebug(imgEl, label){
+      if (!imgEl) return;
+
+      imgEl.addEventListener("load", () => {
+        hudText.textContent = `IMG OK: ${label}`;
+      });
+
+      imgEl.addEventListener("error", () => {
+        hudText.textContent = `IMG ERROR: ${label}`;
+        console.error(`[IMG ERROR] ${label}`, {
+          srcAttr: imgEl.getAttribute("src"),
+          resolvedSrc: imgEl.currentSrc || imgEl.src,
+          baseURI: document.baseURI
+        });
+      });
+    }
+    attachImgDebug(demoTarget, "demoTarget");
+    attachImgDebug(rifleOverlayImg, "rifleOverlay");
+
+    // Demo target motion
+    let animRaf = 0;
+    let tStart = 0;
+    let direction = 1;
+    let speedPxPerSec = 420;
+    let x = -200;
+
+    function viewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
+
+    function setTargetTrack(){
+      const { h } = viewport();
+      const trackY = Math.round(h * 0.46);
+      demoTarget.style.top = `${trackY}px`;
+    }
+
+    function placeTargetStart(){
+      const { w } = viewport();
+      const tw = demoTarget.getBoundingClientRect().width || 200;
+      x = (direction === 1) ? (-tw - 40) : (w + 40);
+      demoTarget.style.transform = `translate3d(${x}px,0,0)`;
+    }
+
+    function startMotion(){
+      cancelAnimationFrame(animRaf);
+      tStart = performance.now();
+      setTargetTrack();
+      placeTargetStart();
+
+      function tick(now){
+        const dt = (now - tStart) / 1000;
+        tStart = now;
+
+        x += direction * speedPxPerSec * dt;
+        demoTarget.style.transform = `translate3d(${x}px,0,0)`;
+
+        const { w } = viewport();
+        const r = demoTarget.getBoundingClientRect();
+
+        if (direction === 1 && r.left > w + 80){
+          direction = -1;
+          placeTargetStart();
+        } else if (direction === -1 && r.right < -80){
+          direction = 1;
+          placeTargetStart();
+        }
+
+        animRaf = requestAnimationFrame(tick);
+      }
+      animRaf = requestAnimationFrame(tick);
+    }
+
+    function reticleCenterX(){
+      const r = reticle.getBoundingClientRect();
+      return r.left + r.width / 2;
+    }
+
+    function targetCenterX(){
+      const r = demoTarget.getBoundingClientRect();
+      return r.left + r.width / 2;
+    }
+
+    let guidesOn = false;
+    function toggleGuides(){
+      guidesOn = !guidesOn;
+      document.documentElement.classList.toggle("guides-on", guidesOn);
+      hudText.textContent = guidesOn ? "Guides ON" : "BOOT OK";
+    }
+
+    fireBtn.addEventListener("click", () => {
+      if (modalBackdrop.classList.contains("modal-open")) return;
+
+      const dx = Math.abs(targetCenterX() - reticleCenterX());
+      const tw = demoTarget.getBoundingClientRect().width || 200;
+      const deltaPct = (dx / tw) * 100;
+
+      let outcome = "Miss";
+      if (deltaPct <= 10) outcome = "Perfect hit";
+      else if (deltaPct <= 25) outcome = "Solid hit";
+      else if (deltaPct <= 40) outcome = "Graze";
+
+      openModal({
+        outcome,
+        meat: outcome === "Miss" ? "0" : "—",
+        ammo: "1",
+        days: "—",
+        note: `delta ${deltaPct.toFixed(1)}%`
+      });
     });
 
-    window.addEventListener("vc:shot_hit", (e) => {
-      const d = e.detail || {};
-      logHUD(`HIT: ${d.type || "?"}\nremaining hp: ${d.hp ?? d.remaining_hp ?? "?"}`);
-    });
+    continueBtn.addEventListener("click", closeModal);
+    resetBtn.addEventListener("click", placeTargetStart);
+    toggleGuidesBtn.addEventListener("click", toggleGuides);
+    window.addEventListener("resize", setTargetTrack);
 
-    window.addEventListener("vc:shot_miss", () => {
-      logHUD(`MISS`);
-    });
-
-    window.addEventListener("vc:target_killed", (e) => {
-      const d = e.detail || {};
-      logHUD(`KILLED: ${d.type || "?"}`);
-    });
-
-    window.addEventListener("vc:player_injured", (e) => {
-      const d = e.detail || {};
-      logHUD(`INJURED\nsource: ${d.source || "?"}`);
-    });
-
-    // If your target_runner.js emits this (my debug version did):
-    window.addEventListener("vc:target_img_error", (e) => {
-      const d = e.detail || {};
-      logHUD(`IMG ERROR\nsrc: ${d.src || "?"}\nbaseURI: ${d.baseURI || "?"}`);
-    });
-
-    // ===========================
-    // 4) Shoot on tap/click (debug)
-    // ===========================
-    document.getElementById("tapToShoot").addEventListener("click", () => {
-      window.dispatchEvent(new Event("vc:shoot"));
-    });
+    hudText.textContent = "BOOT OK";
+    startMotion();
   </script>
 </body>
 </html>
