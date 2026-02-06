@@ -2,7 +2,7 @@
 
 /* + moves rifle down, - moves rifle up */
 :root {
-  --vc-rifle-offset-y: 0px;
+  --vc-rifle-offset-y: 32px;
 }
 
 .rifle-overlay {
