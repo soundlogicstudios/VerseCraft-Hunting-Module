@@ -11,9 +11,10 @@
   <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
     <div class="layer layer-bg" aria-hidden="true"></div>
 
-    <div id="targetsLayer" class="layer layer-targets" aria-hidden="true">
+    <div class="layer layer-targets" aria-hidden="true">
+      <!-- CHANGE THIS FILENAME if your actual target differs -->
       <img id="demoTarget" class="target-sprite"
-           src="assets/targets/rabbit_right.png" alt="" draggable="false" />
+           src="assets/targets/squirrel_right.webp" alt="" draggable="false" />
     </div>
 
     <div class="layer layer-ui" aria-hidden="true">
@@ -31,7 +32,7 @@
       </div>
     </div>
 
-    <!-- Modal: class-driven state -->
+    <!-- Modal: CLOSED by default -->
     <div id="modalBackdrop" class="modal-backdrop modal-closed">
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
@@ -56,7 +57,7 @@
         </div>
 
         <div class="modal-footer">
-          <!-- Inline fallback: ALWAYS closes modal even if JS listeners fail -->
+          <!-- inline fallback so closing always works -->
           <button id="continueBtn" class="btn-primary" type="button"
                   onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
             Continue
@@ -67,7 +68,6 @@
   </main>
 
   <script>
-    // ---------- tiny helpers ----------
     const el = (id) => document.getElementById(id);
 
     const fireBtn = el("fireBtn");
@@ -90,124 +90,114 @@
     const noteRow = el("noteRow");
     const noteValue = el("noteValue");
 
-    let guidesOn = false;
+    // Kill iOS rubberband gestures
+    document.addEventListener("touchmove", (e) => e.preventDefault(), { passive:false });
 
-    // ----- modal control (class-driven) -----
-    function openModal(payload) {
+    function openModal(payload){
       huntOutcome.textContent = `Outcome: ${payload.outcome}`;
       meatValue.textContent = payload.meat;
       ammoValue.textContent = payload.ammo;
       daysValue.textContent = payload.days;
 
-      if (payload.injury) {
+      if (payload.injury){
         injuryValue.textContent = payload.injury;
         injuryRow.style.display = "flex";
-      } else {
-        injuryRow.style.display = "none";
-      }
+      } else injuryRow.style.display = "none";
 
-      if (payload.note) {
+      if (payload.note){
         noteValue.textContent = payload.note;
         noteRow.style.display = "flex";
-      } else {
-        noteRow.style.display = "none";
-      }
+      } else noteRow.style.display = "none";
 
       modalBackdrop.classList.remove("modal-closed");
       modalBackdrop.classList.add("modal-open");
     }
 
-    function closeModal() {
+    function closeModal(){
       modalBackdrop.classList.remove("modal-open");
       modalBackdrop.classList.add("modal-closed");
     }
 
-    // Expose fallback for inline onclick
+    // Inline fallback hook
     window.vc_hunt_close_modal = closeModal;
 
     // Force closed on boot
     closeModal();
 
-    // ----- motion (demo) -----
+    // Demo target motion
     let animRaf = 0;
     let tStart = 0;
-    let direction = 1; // 1 L->R, -1 R->L
+    let direction = 1;
     let speedPxPerSec = 420;
     let x = -200;
 
-    function viewport() { return { w: window.innerWidth, h: window.innerHeight }; }
+    function viewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
 
-    function setTargetTrack() {
+    function setTargetTrack(){
       const { h } = viewport();
       const trackY = Math.round(h * 0.46);
       demoTarget.style.top = `${trackY}px`;
     }
 
-    function placeTargetStart() {
+    function placeTargetStart(){
       const { w } = viewport();
-      const targetW = demoTarget.getBoundingClientRect().width || 200;
-      x = (direction === 1) ? (-targetW - 40) : (w + 40);
-      demoTarget.style.transform = `translate3d(${x}px, 0, 0)`;
+      const tw = demoTarget.getBoundingClientRect().width || 200;
+      x = (direction === 1) ? (-tw - 40) : (w + 40);
+      demoTarget.style.transform = `translate3d(${x}px,0,0)`;
     }
 
-    function startDemoMotion() {
+    function startMotion(){
       cancelAnimationFrame(animRaf);
       tStart = performance.now();
       setTargetTrack();
       placeTargetStart();
 
-      function tick(now) {
+      function tick(now){
         const dt = (now - tStart) / 1000;
         tStart = now;
 
         x += direction * speedPxPerSec * dt;
-        demoTarget.style.transform = `translate3d(${x}px, 0, 0)`;
+        demoTarget.style.transform = `translate3d(${x}px,0,0)`;
 
         const { w } = viewport();
-        const rect = demoTarget.getBoundingClientRect();
+        const r = demoTarget.getBoundingClientRect();
 
-        if (direction === 1 && rect.left > w + 80) {
+        if (direction === 1 && r.left > w + 80){
           direction = -1;
-          demoTarget.src = demoTarget.src.includes("_right") ? demoTarget.src.replace("_right","_left") : demoTarget.src;
           placeTargetStart();
-        } else if (direction === -1 && rect.right < -80) {
+        } else if (direction === -1 && r.right < -80){
           direction = 1;
-          demoTarget.src = demoTarget.src.includes("_left") ? demoTarget.src.replace("_left","_right") : demoTarget.src;
           placeTargetStart();
         }
 
         animRaf = requestAnimationFrame(tick);
       }
-
       animRaf = requestAnimationFrame(tick);
     }
 
-    function reticleCenterX() {
+    function reticleCenterX(){
       const r = reticle.getBoundingClientRect();
       return r.left + r.width / 2;
     }
-    function targetCenterX() {
+
+    function targetCenterX(){
       const r = demoTarget.getBoundingClientRect();
       return r.left + r.width / 2;
     }
 
-    function toggleGuides() {
+    let guidesOn = false;
+    function toggleGuides(){
       guidesOn = !guidesOn;
       document.documentElement.classList.toggle("guides-on", guidesOn);
       hudText.textContent = guidesOn ? "Guides ON" : "BOOT OK";
     }
 
-    // IMPORTANT: stop iOS from turning taps into scroll gestures
-    document.addEventListener("touchmove", (e) => e.preventDefault(), { passive:false });
-
-    // Wire buttons
     fireBtn.addEventListener("click", () => {
-      // If modal is open, do nothing (safety)
       if (modalBackdrop.classList.contains("modal-open")) return;
 
       const dx = Math.abs(targetCenterX() - reticleCenterX());
-      const targetW = demoTarget.getBoundingClientRect().width || 200;
-      const deltaPct = (dx / targetW) * 100;
+      const tw = demoTarget.getBoundingClientRect().width || 200;
+      const deltaPct = (dx / tw) * 100;
 
       let outcome = "Miss";
       if (deltaPct <= 10) outcome = "Perfect hit";
@@ -219,7 +209,6 @@
         meat: outcome === "Miss" ? "0" : "—",
         ammo: "1",
         days: "—",
-        injury: "",
         note: `delta ${deltaPct.toFixed(1)}%`
       });
     });
@@ -229,11 +218,8 @@
     toggleGuidesBtn.addEventListener("click", toggleGuides);
     window.addEventListener("resize", setTargetTrack);
 
-    // Boot status
     hudText.textContent = "BOOT OK";
-
-    // Start motion
-    startDemoMotion();
+    startMotion();
   </script>
 </body>
 </html>
