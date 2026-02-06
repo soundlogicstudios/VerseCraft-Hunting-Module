@@ -12,9 +12,12 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
 
-  /* THE ONE KNOB YOU CARE ABOUT */
-  /* Negative = move rifle UP, Positive = move rifle DOWN */
+  /* POSITIONING KNOBS */
+  /* Positive = move rifle DOWN */
   --rifle-y: 25px;
+
+  /* Positive = move world UP */
+  --world-y: 25px;
 
   /* COLORS */
   --panel-bg: rgba(18,14,10,0.82);
@@ -70,20 +73,26 @@ body{
 }
 
 /* =========================================================
-   BACKGROUND
+   BACKGROUND (WORLD)
    ========================================================= */
 .layer-bg{
   background-image: var(--hunt-bg-url);
   background-size:cover;
   background-position:center center;
   background-repeat:no-repeat;
+
+  /* MOVE WORLD UP */
+  transform: translate3d(0, calc(-1 * var(--world-y)), 0);
 }
 
 /* =========================================================
-   TARGETS
+   TARGETS (WORLD-ALIGNED)
    ========================================================= */
 .layer-targets{
   pointer-events:none;
+
+  /* MOVE TARGETS UP WITH WORLD */
+  transform: translate3d(0, calc(-1 * var(--world-y)), 0);
 }
 
 .target-sprite{
@@ -132,7 +141,7 @@ body{
 .reticle::after{ width:220px; height:3px; }
 
 /* =========================================================
-   RIFLE OVERLAY (THIS IS THE FIX)
+   RIFLE OVERLAY
    ========================================================= */
 .rifle-overlay{
   position:absolute;
@@ -142,7 +151,7 @@ body{
   background-size:cover;
   background-repeat:no-repeat;
 
-  /* THIS LINE IS THE ENTIRE POINT */
+  /* MOVE RIFLE DOWN */
   background-position: 50% calc(100% + var(--rifle-y));
 
   pointer-events:none;
