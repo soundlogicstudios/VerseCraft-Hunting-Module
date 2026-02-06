@@ -1,6 +1,7 @@
 :root{
-  --hunt-bg-url: url("../assets/backgrounds/hunt_bg.webp");
-  --rifle-overlay-url: url("../assets/overlays/hands_rifle.png");
+  /* YOUR ASSETS */
+  --hunt-bg-url: url("../assets/backgrounds/oregon-trail-hunting-minigame.webp");
+  --rifle-overlay-url: url("../assets/overlays/rifle-overlay.webp");
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
@@ -10,26 +11,24 @@
   --panel-bg: rgba(18, 14, 10, 0.82);
   --panel-border: rgba(245, 225, 180, 0.35);
   --text: rgba(245, 235, 215, 0.95);
-  --muted: rgba(245, 235, 215, 0.82);
+  --muted: rgba(245, 235, 215, 0.86);
 }
 
-/* HARD REQUIREMENT: hidden must always work */
+/* make [hidden] reliable everywhere */
 [hidden]{ display:none !important; }
 
-/* ---------------------------
-   iOS: NO SCROLL / NO RUBBERBAND
-   --------------------------- */
+/* ---- iOS: kill scroll + rubberband ---- */
 html, body{
   margin:0;
   padding:0;
   width:100%;
   height:100%;
   overflow:hidden !important;
-  position:fixed;      /* kills rubberband on iOS */
+  position:fixed;
   inset:0;
   background:#000;
-  -webkit-overflow-scrolling: auto;
   overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
   touch-action: none;
 }
 
@@ -44,16 +43,13 @@ body{
   position:fixed;
   left:0; top:0;
   width:100vw;
-  height:100dvh; /* modern iOS */
-  height:100vh;  /* fallback */
+  height:100dvh;
+  height:100vh;
   overflow:hidden;
   touch-action:none;
 }
 
-.layer{
-  position:absolute;
-  inset:0;
-}
+.layer{ position:absolute; inset:0; }
 
 /* Background */
 .layer-bg{
@@ -65,7 +61,6 @@ body{
 
 /* Targets */
 .layer-targets{ pointer-events:none; }
-
 .target-sprite{
   position:absolute;
   left:0;
@@ -91,7 +86,6 @@ body{
   border: 2px solid rgba(240, 235, 220, 0.35);
   border-radius: 999px;
 }
-
 .reticle::before,
 .reticle::after{
   content:"";
@@ -130,7 +124,7 @@ body{
   height:64px;
   border-radius: 14px;
   border: 1px solid rgba(245,225,180,0.55);
-  background: rgba(160, 40, 30, 0.88);
+  background: rgba(160, 40, 30, 0.90);
   color: rgba(255,255,255,0.95);
   font-size: 20px;
   font-weight: 900;
@@ -165,9 +159,7 @@ body{
   font-weight: 800;
 }
 
-/* ---------------------------
-   Modal: BULLETPROOF OPEN/CLOSE
-   --------------------------- */
+/* Modal (class-driven; CLOSED by default) */
 .modal-backdrop{
   position:absolute;
   inset:0;
@@ -180,13 +172,11 @@ body{
   backdrop-filter: blur(2px);
 }
 
-/* CLOSED state is ALWAYS non-interactive */
 .modal-backdrop.modal-closed{
   pointer-events:none;
   opacity:0;
 }
 
-/* OPEN state intercepts taps */
 .modal-backdrop.modal-open{
   pointer-events:auto;
   opacity:1;
@@ -251,7 +241,7 @@ body{
   height:54px;
   border-radius: 14px;
   border: 1px solid rgba(245,225,180,0.55);
-  background: rgba(40, 120, 70, 0.88);
+  background: rgba(40, 120, 70, 0.90);
   color: rgba(255,255,255,0.95);
   font-size: 16px;
   font-weight: 900;
