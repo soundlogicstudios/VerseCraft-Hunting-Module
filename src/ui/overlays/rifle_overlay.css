@@ -1,0 +1,88 @@
+/* =========================================================
+   VerseCraft Rifle Overlay
+   ---------------------------------------------------------
+   PURPOSE:
+   - Position a rifle overlay image independently of reticule
+   - Allow vertical adjustment via a single CSS variable
+   - Preserve transparency (no background blocking)
+   - Never intercept input
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   GLOBAL TUNING KNOBS
+   --------------------------------------------------------- */
+
+/*
+  Vertical offset for rifle overlay.
+  Positive = move DOWN
+  Negative = move UP
+*/
+:root {
+  --vc-rifle-offset-y: 0px;
+}
+
+/* ---------------------------------------------------------
+   RIFLE OVERLAY CONTAINER
+   --------------------------------------------------------- */
+
+/*
+  Use ONE of these selectors depending on your markup.
+  You can safely keep all three.
+*/
+#rifle-overlay,
+#rifleOverlay,
+.rifle-overlay {
+  position: absolute;
+
+  /* Horizontal centering */
+  left: 50%;
+  transform: translateX(-50%) translateY(var(--vc-rifle-offset-y));
+
+  /* Anchor from bottom so screen size doesn’t break alignment */
+  bottom: 0;
+
+  /* Ensure rifle sits:
+     - ABOVE targets
+     - BELOW reticule
+  */
+  z-index: 55;
+
+  /* Critical: rifle must not block clicks/shots */
+  pointer-events: none;
+
+  /* Transparency is preserved automatically */
+  background: transparent;
+}
+
+/* ---------------------------------------------------------
+   RIFLE IMAGE ITSELF
+   --------------------------------------------------------- */
+
+#rifle-overlay img,
+#rifleOverlay img,
+.rifle-overlay img {
+  display: block;
+
+  /* Responsive sizing — clamps so it behaves on 1080p+ */
+  width: min(80vw, 1100px);
+  max-width: 100%;
+  height: auto;
+
+  /* Prevent browser smoothing artifacts */
+  image-rendering: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------
+   OPTIONAL: DEBUG VISUAL (comment out when done)
+   --------------------------------------------------------- */
+
+/*
+#rifle-overlay,
+#rifleOverlay,
+.rifle-overlay {
+  outline: 2px dashed rgba(255, 0, 0, 0.5);
+}
+*/
