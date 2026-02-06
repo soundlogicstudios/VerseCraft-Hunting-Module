@@ -1,0 +1,285 @@
+/* styles/hunt.css
+Panel-based scaffold for the hunting minigame.
+
+Update these three variables to match your actual assets.
+(Keep URLs relative to index.html for GitHub Pages sanity.)
+*/
+:root{
+  --hunt-bg-url: url("../assets/backgrounds/hunt_bg.webp");
+  --rifle-overlay-url: url("../assets/overlays/hands_rifle.png");
+
+  /* Optional: if you want a reticle image instead of CSS lines */
+  /* --reticle-url: url("../assets/ui/reticle.png"); */
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  --panel-bg: rgba(18, 14, 10, 0.78);
+  --panel-border: rgba(245, 225, 180, 0.35);
+  --text: rgba(245, 235, 215, 0.95);
+  --muted: rgba(245, 235, 215, 0.75);
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  background:#000;
+  color:var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.hunt-root{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
+  touch-action: manipulation;
+}
+
+/* Layer base */
+.layer{
+  position:absolute;
+  inset:0;
+}
+
+/* Background */
+.layer-bg{
+  background-image: var(--hunt-bg-url);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  filter: none;
+}
+
+/* Targets layer */
+.layer-targets{
+  pointer-events:none;
+}
+
+/* Demo target sprite baseline */
+.target-sprite{
+  position:absolute;
+  left:0;
+  width:min(40vw, 520px);
+  height:auto;
+  transform: translate3d(-200px, 0, 0);
+  will-change: transform;
+  user-select:none;
+}
+
+/* UI layer */
+.layer-ui{
+  pointer-events:none;
+}
+
+/* Reticle: CSS lines (works without a separate asset) */
+.reticle{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:220px;
+  height:220px;
+  transform: translate(-50%, -50%);
+  opacity:0.9;
+}
+
+/* Crosshair lines */
+.reticle::before,
+.reticle::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%, -50%);
+  background: rgba(240, 235, 220, 0.85);
+  box-shadow: 0 0 6px rgba(0,0,0,0.55);
+}
+
+/* Vertical line */
+.reticle::before{
+  width:3px;
+  height:220px;
+}
+
+/* Horizontal line */
+.reticle::after{
+  width:220px;
+  height:3px;
+}
+
+/* Subtle ring */
+.reticle{
+  border: 2px solid rgba(240, 235, 220, 0.35);
+  border-radius: 999px;
+}
+
+/* Rifle overlay */
+.rifle-overlay{
+  position:absolute;
+  inset:0;
+  background-image: var(--rifle-overlay-url);
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  pointer-events:none;
+}
+
+/* Controls */
+.layer-controls{
+  pointer-events:auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:center;
+  padding: 16px calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
+  gap: 12px;
+}
+
+.btn-fire{
+  width:min(420px, 92vw);
+  height:64px;
+  border-radius: 14px;
+  border: 1px solid rgba(245,225,180,0.55);
+  background: rgba(160, 40, 30, 0.85);
+  color: rgba(255,255,255,0.95);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.btn-fire:active{
+  transform: translateY(1px);
+}
+
+.debug-row{
+  width:min(720px, 92vw);
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  padding-bottom: calc(6px + var(--safe-bottom));
+}
+
+.btn-secondary{
+  height:40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(245,225,180,0.35);
+  background: rgba(30, 24, 18, 0.70);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.hud-text{
+  font-size: 13px;
+  color: var(--muted);
+  opacity:0.9;
+}
+
+/* Modal */
+.modal-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,0.62);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: calc(20px + var(--safe-top)) calc(16px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(16px + var(--safe-left));
+  z-index: 9999;
+  pointer-events:auto;
+}
+
+.modal-panel{
+  width: min(720px, 94vw);
+  border-radius: 18px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  overflow:hidden;
+}
+
+.modal-header{
+  padding: 18px 18px 8px 18px;
+  border-bottom: 1px solid rgba(245,225,180,0.18);
+}
+
+.modal-title{
+  margin:0;
+  font-size: 18px;
+  letter-spacing: 0.10em;
+}
+
+.modal-body{
+  padding: 14px 18px 8px 18px;
+}
+
+.modal-outcome{
+  margin: 0 0 14px 0;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.modal-grid{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(245,225,180,0.18);
+  background: rgba(10, 8, 6, 0.35);
+}
+
+.row .label{
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.row .value{
+  color: var(--text);
+  font-weight: 900;
+}
+
+.row-optional{
+  opacity:0.95;
+}
+
+.modal-footer{
+  padding: 12px 18px 18px 18px;
+  display:flex;
+  justify-content:center;
+}
+
+.btn-primary{
+  width:min(420px, 92vw);
+  height:54px;
+  border-radius: 14px;
+  border: 1px solid rgba(245,225,180,0.55);
+  background: rgba(40, 120, 70, 0.85);
+  color: rgba(255,255,255,0.95);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Optional Guides (debug) */
+.guides-on .reticle{
+  outline: 2px dashed rgba(255,255,255,0.25);
+  outline-offset: 6px;
+}
+.guides-on .layer-targets{
+  outline: 2px dashed rgba(255,255,255,0.18);
+  outline-offset: -6px;
+}
