@@ -12,13 +12,8 @@
     <div class="layer layer-bg" aria-hidden="true"></div>
 
     <div id="targetsLayer" class="layer layer-targets" aria-hidden="true">
-      <img
-        id="demoTarget"
-        class="target-sprite"
-        src="assets/targets/squirrel_right.png"
-        alt=""
-        draggable="false"
-      />
+      <img id="demoTarget" class="target-sprite"
+           src="assets/targets/rabbit_right.png" alt="" draggable="false" />
     </div>
 
     <div class="layer layer-ui" aria-hidden="true">
@@ -32,12 +27,12 @@
       <div class="debug-row" aria-label="Debug Controls">
         <button id="resetBtn" class="btn-secondary" type="button">Reset Target</button>
         <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
-        <span id="hudText" class="hud-text">Phase 1 scaffold</span>
+        <span id="hudText" class="hud-text">BOOTING…</span>
       </div>
     </div>
 
-    <!-- Modal backdrop -->
-    <div id="modalBackdrop" class="modal-backdrop" hidden>
+    <!-- Modal: class-driven state -->
+    <div id="modalBackdrop" class="modal-backdrop modal-closed">
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h2 id="modalTitle" class="modal-title">THE HUNT</h2>
@@ -47,46 +42,32 @@
           <p id="huntOutcome" class="modal-outcome">Outcome: —</p>
 
           <div class="modal-grid" role="group" aria-label="Hunt Summary">
-            <div class="row">
-              <div class="label">Meat gained</div>
-              <div id="meatValue" class="value">—</div>
-            </div>
-            <div class="row">
-              <div class="label">Ammunition used</div>
-              <div id="ammoValue" class="value">—</div>
-            </div>
-            <div class="row">
-              <div class="label">Time passed</div>
-              <div id="daysValue" class="value">—</div>
-            </div>
+            <div class="row"><div class="label">Meat gained</div><div id="meatValue" class="value">—</div></div>
+            <div class="row"><div class="label">Ammunition used</div><div id="ammoValue" class="value">—</div></div>
+            <div class="row"><div class="label">Time passed</div><div id="daysValue" class="value">—</div></div>
 
-            <!-- Optional rows: hidden unless populated -->
-            <div id="injuryRow" class="row row-optional" hidden>
-              <div class="label">Injury</div>
-              <div id="injuryValue" class="value">—</div>
+            <div id="injuryRow" class="row" style="display:none;">
+              <div class="label">Injury</div><div id="injuryValue" class="value">—</div>
             </div>
-            <div id="noteRow" class="row row-optional" hidden>
-              <div class="label">Note</div>
-              <div id="noteValue" class="value">—</div>
+            <div id="noteRow" class="row" style="display:none;">
+              <div class="label">Note</div><div id="noteValue" class="value">—</div>
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button id="continueBtn" class="btn-primary" type="button">Continue</button>
+          <!-- Inline fallback: ALWAYS closes modal even if JS listeners fail -->
+          <button id="continueBtn" class="btn-primary" type="button"
+                  onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
+            Continue
+          </button>
         </div>
       </div>
     </div>
   </main>
 
   <script>
-    // ------------------------------------------------------------
-    // Phase Scaffold JS (intentionally small)
-    // Fixes:
-    // - Modal is FORCE-CLOSED on boot (Safari-safe)
-    // - Modal open/close uses class + hidden attribute
-    // ------------------------------------------------------------
-
+    // ---------- tiny helpers ----------
     const el = (id) => document.getElementById(id);
 
     const fireBtn = el("fireBtn");
@@ -111,16 +92,50 @@
 
     let guidesOn = false;
 
-    // Demo motion parameters
+    // ----- modal control (class-driven) -----
+    function openModal(payload) {
+      huntOutcome.textContent = `Outcome: ${payload.outcome}`;
+      meatValue.textContent = payload.meat;
+      ammoValue.textContent = payload.ammo;
+      daysValue.textContent = payload.days;
+
+      if (payload.injury) {
+        injuryValue.textContent = payload.injury;
+        injuryRow.style.display = "flex";
+      } else {
+        injuryRow.style.display = "none";
+      }
+
+      if (payload.note) {
+        noteValue.textContent = payload.note;
+        noteRow.style.display = "flex";
+      } else {
+        noteRow.style.display = "none";
+      }
+
+      modalBackdrop.classList.remove("modal-closed");
+      modalBackdrop.classList.add("modal-open");
+    }
+
+    function closeModal() {
+      modalBackdrop.classList.remove("modal-open");
+      modalBackdrop.classList.add("modal-closed");
+    }
+
+    // Expose fallback for inline onclick
+    window.vc_hunt_close_modal = closeModal;
+
+    // Force closed on boot
+    closeModal();
+
+    // ----- motion (demo) -----
     let animRaf = 0;
     let tStart = 0;
-    let direction = 1; // 1 = L->R, -1 = R->L
+    let direction = 1; // 1 L->R, -1 R->L
     let speedPxPerSec = 420;
     let x = -200;
 
-    function viewport() {
-      return { w: window.innerWidth, h: window.innerHeight };
-    }
+    function viewport() { return { w: window.innerWidth, h: window.innerHeight }; }
 
     function setTargetTrack() {
       const { h } = viewport();
@@ -153,9 +168,11 @@
 
         if (direction === 1 && rect.left > w + 80) {
           direction = -1;
+          demoTarget.src = demoTarget.src.includes("_right") ? demoTarget.src.replace("_right","_left") : demoTarget.src;
           placeTargetStart();
         } else if (direction === -1 && rect.right < -80) {
           direction = 1;
+          demoTarget.src = demoTarget.src.includes("_left") ? demoTarget.src.replace("_left","_right") : demoTarget.src;
           placeTargetStart();
         }
 
@@ -169,54 +186,25 @@
       const r = reticle.getBoundingClientRect();
       return r.left + r.width / 2;
     }
-
     function targetCenterX() {
       const r = demoTarget.getBoundingClientRect();
       return r.left + r.width / 2;
     }
 
-    function openModal(payload) {
-      huntOutcome.textContent = `Outcome: ${payload.outcome}`;
-      meatValue.textContent = payload.meat;
-      ammoValue.textContent = payload.ammo;
-      daysValue.textContent = payload.days;
-
-      if (payload.injury) {
-        injuryValue.textContent = payload.injury;
-        injuryRow.hidden = false;
-      } else {
-        injuryRow.hidden = true;
-      }
-
-      if (payload.note) {
-        noteValue.textContent = payload.note;
-        noteRow.hidden = false;
-      } else {
-        noteRow.hidden = true;
-      }
-
-      // Show modal deterministically
-      modalBackdrop.hidden = false;
-      modalBackdrop.classList.add("is-open");
-    }
-
-    function closeModal() {
-      modalBackdrop.classList.remove("is-open");
-      modalBackdrop.hidden = true;
-    }
-
-    function forceCloseModalOnBoot() {
-      // Safari/iOS sanity: ensure it starts closed no matter what.
-      closeModal();
-    }
-
     function toggleGuides() {
       guidesOn = !guidesOn;
       document.documentElement.classList.toggle("guides-on", guidesOn);
-      hudText.textContent = guidesOn ? "Guides ON" : "Guides OFF";
+      hudText.textContent = guidesOn ? "Guides ON" : "BOOT OK";
     }
 
+    // IMPORTANT: stop iOS from turning taps into scroll gestures
+    document.addEventListener("touchmove", (e) => e.preventDefault(), { passive:false });
+
+    // Wire buttons
     fireBtn.addEventListener("click", () => {
+      // If modal is open, do nothing (safety)
+      if (modalBackdrop.classList.contains("modal-open")) return;
+
       const dx = Math.abs(targetCenterX() - reticleCenterX());
       const targetW = demoTarget.getBoundingClientRect().width || 200;
       const deltaPct = (dx / targetW) * 100;
@@ -232,26 +220,19 @@
         ammo: "1",
         days: "—",
         injury: "",
-        note: `Debug: delta ${deltaPct.toFixed(1)}%`
+        note: `delta ${deltaPct.toFixed(1)}%`
       });
     });
 
     continueBtn.addEventListener("click", closeModal);
-
-    resetBtn.addEventListener("click", () => {
-      placeTargetStart();
-    });
-
+    resetBtn.addEventListener("click", placeTargetStart);
     toggleGuidesBtn.addEventListener("click", toggleGuides);
-
     window.addEventListener("resize", setTargetTrack);
 
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !modalBackdrop.hidden) closeModal();
-    });
+    // Boot status
+    hudText.textContent = "BOOT OK";
 
-    // Boot
-    forceCloseModalOnBoot();
+    // Start motion
     startDemoMotion();
   </script>
 </body>
