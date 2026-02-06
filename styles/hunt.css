@@ -7,31 +7,47 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
 
-  --panel-bg: rgba(18, 14, 10, 0.78);
+  --panel-bg: rgba(18, 14, 10, 0.82);
   --panel-border: rgba(245, 225, 180, 0.35);
   --text: rgba(245, 235, 215, 0.95);
   --muted: rgba(245, 235, 215, 0.82);
 }
 
-/* HARD REQUIREMENT:
-   Make the HTML [hidden] attribute work in every browser/environment. */
+/* HARD REQUIREMENT: hidden must always work */
 [hidden]{ display:none !important; }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{
+/* ---------------------------
+   iOS: NO SCROLL / NO RUBBERBAND
+   --------------------------- */
+html, body{
   margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden !important;
+  position:fixed;      /* kills rubberband on iOS */
+  inset:0;
   background:#000;
+  -webkit-overflow-scrolling: auto;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+*{ box-sizing:border-box; }
+
+body{
   color:var(--text);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
 .hunt-root{
-  position:relative;
+  position:fixed;
+  left:0; top:0;
   width:100vw;
-  height:100vh;
+  height:100dvh; /* modern iOS */
+  height:100vh;  /* fallback */
   overflow:hidden;
-  touch-action: manipulation;
+  touch-action:none;
 }
 
 .layer{
@@ -44,11 +60,12 @@ body{
   background-image: var(--hunt-bg-url);
   background-size: cover;
   background-position: center center;
-  background-repeat: no-repeat;
+  background-repeat:no-repeat;
 }
 
 /* Targets */
 .layer-targets{ pointer-events:none; }
+
 .target-sprite{
   position:absolute;
   left:0;
@@ -57,6 +74,7 @@ body{
   transform: translate3d(-200px, 0, 0);
   will-change: transform;
   user-select:none;
+  -webkit-user-drag:none;
 }
 
 /* UI */
@@ -93,8 +111,7 @@ body{
   background-image: var(--rifle-overlay-url);
   background-size: cover;
   background-position: center bottom;
-  background-repeat: no-repeat;
-  pointer-events:none;
+  background-repeat:no-repeat;
 }
 
 /* Controls */
@@ -113,10 +130,10 @@ body{
   height:64px;
   border-radius: 14px;
   border: 1px solid rgba(245,225,180,0.55);
-  background: rgba(160, 40, 30, 0.85);
+  background: rgba(160, 40, 30, 0.88);
   color: rgba(255,255,255,0.95);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -129,7 +146,6 @@ body{
   align-items:center;
   justify-content:center;
   flex-wrap:wrap;
-  padding-bottom: calc(6px + var(--safe-bottom));
 }
 
 .btn-secondary{
@@ -138,40 +154,40 @@ body{
   border-radius: 12px;
   border: 1px solid rgba(245,225,180,0.35);
   background: rgba(30, 24, 18, 0.72);
-  color: rgba(245,235,215,0.92);
-  font-weight: 800;
+  color: rgba(245,235,215,0.95);
+  font-weight: 900;
   font-size: 14px;
 }
 
 .hud-text{
-  font-size: 14px;      /* was too tiny */
-  color: rgba(245,235,215,0.92); /* was too gray */
-  opacity: 1;
+  font-size: 14px;
+  color: rgba(245,235,215,0.95);
+  font-weight: 800;
 }
 
-/* Modal (default CLOSED because it's [hidden]) */
+/* ---------------------------
+   Modal: BULLETPROOF OPEN/CLOSE
+   --------------------------- */
 .modal-backdrop{
   position:absolute;
   inset:0;
-  background: rgba(0,0,0,0.68);
+  z-index: 9999;
   display:flex;
   align-items:center;
   justify-content:center;
   padding: calc(20px + var(--safe-top)) calc(16px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(16px + var(--safe-left));
-  z-index: 9999;
-  pointer-events:auto;
+  background: rgba(0,0,0,0.72);
   backdrop-filter: blur(2px);
 }
 
-/* Extra safety:
-   If someone removes the hidden attribute accidentally, it still won’t block
-   unless explicitly opened with .is-open */
-.modal-backdrop:not(.is-open){
+/* CLOSED state is ALWAYS non-interactive */
+.modal-backdrop.modal-closed{
   pointer-events:none;
   opacity:0;
 }
 
-.modal-backdrop.is-open{
+/* OPEN state intercepts taps */
+.modal-backdrop.modal-open{
   pointer-events:auto;
   opacity:1;
 }
@@ -221,7 +237,7 @@ body{
   background: rgba(10, 8, 6, 0.35);
 }
 
-.row .label{ color: var(--muted); font-weight: 800; }
+.row .label{ color: var(--muted); font-weight: 900; }
 .row .value{ color: var(--text); font-weight: 900; }
 
 .modal-footer{
@@ -235,20 +251,10 @@ body{
   height:54px;
   border-radius: 14px;
   border: 1px solid rgba(245,225,180,0.55);
-  background: rgba(40, 120, 70, 0.85);
+  background: rgba(40, 120, 70, 0.88);
   color: rgba(255,255,255,0.95);
   font-size: 16px;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-/* Debug guides */
-.guides-on .reticle{
-  outline: 2px dashed rgba(255,255,255,0.25);
-  outline-offset: 6px;
-}
-.guides-on .layer-targets{
-  outline: 2px dashed rgba(255,255,255,0.18);
-  outline-offset: -6px;
 }
