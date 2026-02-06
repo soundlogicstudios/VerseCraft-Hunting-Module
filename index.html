@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>VerseCraft Hunting Module - Prototype</title>
 
-  <!-- Your existing hunt styling -->
+  <!-- Confirmed location -->
   <link rel="stylesheet" href="styles/hunt.css" />
 
-  <!-- Rifle overlay positioning (vertical offset knob) -->
+  <!-- Rifle overlay offset knob -->
   <link rel="stylesheet" href="styles/overlays/rifle_overlay.css" />
 </head>
 
@@ -17,7 +17,6 @@
     <div class="layer layer-bg" aria-hidden="true"></div>
 
     <div class="layer layer-targets" aria-hidden="true">
-      <!-- Demo target (verify this exact file exists) -->
       <img id="demoTarget" class="target-sprite"
            src="assets/targets/squirrel-right-facing.webp"
            alt="" draggable="false" />
@@ -26,12 +25,9 @@
     <div class="layer layer-ui" aria-hidden="true">
       <div id="reticle" class="reticle" aria-hidden="true"></div>
 
-      <!-- Rifle overlay MUST contain an image or it will be invisible -->
       <div class="rifle-overlay" aria-hidden="true">
-        <!-- CHANGE THIS to your real rifle overlay path -->
-        <img id="rifleOverlayImg"
-             src="assets/ui/rifle-overlay.webp"
-             alt="" draggable="false" />
+        <!-- CHANGE THIS to your real rifle overlay file -->
+        <img id="rifleOverlayImg" src="assets/ui/rifle-overlay.webp" alt="" draggable="false" />
       </div>
     </div>
 
@@ -70,7 +66,6 @@
         </div>
 
         <div class="modal-footer">
-          <!-- inline fallback so closing always works -->
           <button id="continueBtn" class="btn-primary" type="button"
                   onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
             Continue
@@ -136,20 +131,13 @@
       modalBackdrop.classList.add("modal-closed");
     }
 
-    // Inline fallback hook
     window.vc_hunt_close_modal = closeModal;
-
-    // Force closed on boot
     closeModal();
 
-    // Debug image loading (shows exact resolved URL on failure)
+    // Debug image loading (prints resolved URL on failure)
     function attachImgDebug(imgEl, label){
       if (!imgEl) return;
-
-      imgEl.addEventListener("load", () => {
-        hudText.textContent = `IMG OK: ${label}`;
-      });
-
+      imgEl.addEventListener("load", () => {});
       imgEl.addEventListener("error", () => {
         hudText.textContent = `IMG ERROR: ${label}`;
         console.error(`[IMG ERROR] ${label}`, {
@@ -162,7 +150,47 @@
     attachImgDebug(demoTarget, "demoTarget");
     attachImgDebug(rifleOverlayImg, "rifleOverlay");
 
-    // Demo target motion
+    /* =========================================================
+       TARGET FACING (THIS IS THE CHANGE YOU ASKED FOR)
+       ========================================================= */
+
+    // Right-facing = moving left -> right
+    // Left-facing  = moving right -> left
+    const TARGET_SPRITES = {
+      squirrel: {
+        left:  "assets/targets/squirrel-left-facing.webp",
+        right: "assets/targets/squirrel-right-facing.webp"
+      },
+      rabbit: {
+        left:  "assets/targets/rabbit-left-facing.webp",
+        right: "assets/targets/rabbit-right-facing.webp"
+      },
+      deer: {
+        left:  "assets/targets/deer-left-facing.webp",
+        right: "assets/targets/deer-right-facing.webp"
+      },
+      bear: {
+        left:  "assets/targets/bear-left-facing.webp",
+        right: "assets/targets/bear-right-facing.webp"
+      }
+    };
+
+    // For now, demo uses squirrel. We’ll randomize animals next step.
+    let currentAnimal = "squirrel";
+
+    function setTargetFacingForDirection(dir){
+      // dir === 1 means moving right, show right-facing
+      const facing = (dir === 1) ? "right" : "left";
+      const src = TARGET_SPRITES[currentAnimal][facing];
+      if (demoTarget.getAttribute("src") !== src) {
+        demoTarget.setAttribute("src", src);
+      }
+    }
+
+    /* =========================================================
+       Demo target motion
+       ========================================================= */
+
     let animRaf = 0;
     let tStart = 0;
     let direction = 1;
@@ -182,6 +210,7 @@
       const tw = demoTarget.getBoundingClientRect().width || 200;
       x = (direction === 1) ? (-tw - 40) : (w + 40);
       demoTarget.style.transform = `translate3d(${x}px,0,0)`;
+      setTargetFacingForDirection(direction); // ✅ ensure facing matches entry direction
     }
 
     function startMotion(){
@@ -202,10 +231,10 @@
 
         if (direction === 1 && r.left > w + 80){
           direction = -1;
-          placeTargetStart();
+          placeTargetStart(); // flips + resets + updates facing
         } else if (direction === -1 && r.right < -80){
           direction = 1;
-          placeTargetStart();
+          placeTargetStart(); // flips + resets + updates facing
         }
 
         animRaf = requestAnimationFrame(tick);
