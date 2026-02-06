@@ -1,22 +1,9 @@
 /* src/overlays/target_runner.js
-   VerseCraft Target Runner
-   ----------------------------------
-   - Fixed reticule (DO NOT MOVE)
-   - Targets move behind reticule
-   - Random spawn: squirrel, rabbit, deer; rare bear
-   - Bear is 2-hit:
-       hit 1 -> switches to attack image + timer
-       hit 2 -> kill
-       timer expires -> injure event
-   - No sound/meat logic yet (events emitted)
+   VerseCraft Target Runner (ROOT-ABSOLUTE ASSET PATHS + DEBUG)
 */
 
 (() => {
   "use strict";
-
-  /* ===============================
-     CONFIG
-     =============================== */
 
   const CONFIG = {
     mount_selector: "body",
@@ -28,35 +15,30 @@
 
     target_band_top_vh: 22,
     target_band_bottom_vh: 78,
+
+    debug: true, // set false when done
   };
 
-  /* ===============================
-     ASSETS (ALL HYPHENS)
-     =============================== */
-
+  // IMPORTANT: ROOT-ABSOLUTE PATHS (leading slash)
   const ASSETS = {
     squirrel: {
-      left:  "assets/targets/squirrel-left-facing.webp",
-      right: "assets/targets/squirrel-right-facing.webp",
+      left:  "/assets/targets/squirrel-left-facing.webp",
+      right: "/assets/targets/squirrel-right-facing.webp",
     },
     rabbit: {
-      left:  "assets/targets/rabbit-left-facing.webp",
-      right: "assets/targets/rabbit-right-facing.webp",
+      left:  "/assets/targets/rabbit-left-facing.webp",
+      right: "/assets/targets/rabbit-right-facing.webp",
     },
     deer: {
-      left:  "assets/targets/deer-left-facing.webp",
-      right: "assets/targets/deer-right-facing.webp",
+      left:  "/assets/targets/deer-left-facing.webp",
+      right: "/assets/targets/deer-right-facing.webp",
     },
     bear: {
-      left:   "assets/targets/bear-left-facing.webp",
-      right:  "assets/targets/bear-right-facing.webp",
-      attack: "assets/targets/bear-attack-target.webp",
+      left:   "/assets/targets/bear-left-facing.webp",
+      right:  "/assets/targets/bear-right-facing.webp",
+      attack: "/assets/targets/bear-attack-target.webp",
     },
   };
-
-  /* ===============================
-     WEIGHTED SPAWN TABLE
-     =============================== */
 
   const WEIGHTS = [
     { type: "squirrel", w: 0.45 },
@@ -72,10 +54,6 @@
     bear:     { speed: [140, 260], scale: [0.90, 1.10] },
   };
 
-  /* ===============================
-     CSS INJECTION
-     =============================== */
-
   const CSS = `
     .vc-target-layer {
       position: absolute;
@@ -84,7 +62,6 @@
       overflow: hidden;
       z-index: ${CONFIG.z_index};
     }
-
     .vc-target-sprite {
       position: absolute;
       pointer-events: none;
@@ -92,6 +69,21 @@
       -webkit-user-drag: none;
       will-change: transform;
       filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
+    }
+    .vc-target-debug {
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      padding: 6px 8px;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      font: 12px/1.3 -apple-system, system-ui, sans-serif;
+      border-radius: 8px;
+      max-width: 70vw;
+      z-index: ${CONFIG.z_index + 1};
+      pointer-events: none;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
   `;
 
@@ -102,10 +94,6 @@
     s.textContent = CSS;
     document.head.appendChild(s);
   }
-
-  /* ===============================
-     HELPERS
-     =============================== */
 
   const rand = (a, b) => a + Math.random() * (b - a);
   const vh = v => (v / 100) * window.innerHeight;
@@ -136,11 +124,7 @@
            y >= rect.top  && y <= rect.bottom;
   }
 
-  /* ===============================
-     STATE
-     =============================== */
-
-  let layer, sprite;
+  let layer, sprite, debugEl;
   let running = false;
   let raf = 0;
   let last_t = 0;
@@ -149,10 +133,6 @@
   let pos = { x: 0, y: 0 };
   let vx = 0;
   let next_spawn = 0;
-
-  /* ===============================
-     SETUP
-     =============================== */
 
   function ensure_layer() {
     if (layer) return;
@@ -167,7 +147,31 @@
     sprite = document.createElement("img");
     sprite.className = "vc-target-sprite";
     sprite.alt = "target";
+    sprite.decoding = "async";
+    sprite.loading = "eager";
+
+    // HARD DEBUG: tell you exactly which URL failed
+    sprite.addEventListener("error", () => {
+      const msg = `IMG ERROR\nsrc: ${sprite.src}\nbaseURI: ${document.baseURI}`;
+      if (CONFIG.debug) console.error(msg);
+      if (debugEl) debugEl.textContent = msg;
+      emit("vc:target_img_error", { src: sprite.src, baseURI: document.baseURI });
+    });
+
+    sprite.addEventListener("load", () => {
+      if (!CONFIG.debug) return;
+      const msg = `IMG OK\nsrc: ${sprite.src}`;
+      if (debugEl) debugEl.textContent = msg;
+    });
+
     layer.appendChild(sprite);
+
+    if (CONFIG.debug) {
+      debugEl = document.createElement("div");
+      debugEl.className = "vc-target-debug";
+      debugEl.textContent = "Target debug ready.";
+      layer.appendChild(debugEl);
+    }
   }
 
   function sprite_src(type, dir, attack) {
@@ -175,15 +179,8 @@
     return ASSETS[type][dir];
   }
 
-  /* ===============================
-     TARGET SPAWN / DESPAWN
-     =============================== */
-
   function schedule_spawn() {
-    next_spawn = Date.now() + rand(
-      CONFIG.spawn_delay_ms[0],
-      CONFIG.spawn_delay_ms[1]
-    );
+    next_spawn = Date.now() + rand(CONFIG.spawn_delay_ms[0], CONFIG.spawn_delay_ms[1]);
   }
 
   function spawn() {
@@ -212,10 +209,9 @@
 
     sprite.src = sprite_src(type, dir, false);
     sprite.style.opacity = "1";
-    sprite.style.transform =
-      `translate3d(${pos.x}px,${pos.y}px,0) scale(${scale})`;
+    sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${scale})`;
 
-    emit("vc:target_spawn", { type });
+    emit("vc:target_spawn", { type, dir });
   }
 
   function despawn(reason) {
@@ -225,10 +221,6 @@
     sprite.style.opacity = "0";
     schedule_spawn();
   }
-
-  /* ===============================
-     UPDATE LOOP
-     =============================== */
 
   function update(dt) {
     if (!current) {
@@ -245,8 +237,7 @@
     }
 
     pos.x += vx * dt;
-    sprite.style.transform =
-      `translate3d(${pos.x}px,${pos.y}px,0) scale(${current.scale})`;
+    sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${current.scale})`;
 
     if (pos.x < -300 || pos.x > window.innerWidth + 300) {
       despawn("offscreen");
@@ -261,10 +252,6 @@
     update(dt);
     raf = requestAnimationFrame(loop);
   }
-
-  /* ===============================
-     SHOOT HANDLER
-     =============================== */
 
   function shoot() {
     if (!current) {
@@ -303,10 +290,6 @@
     despawn("killed");
   }
 
-  /* ===============================
-     PUBLIC API
-     =============================== */
-
   window.vc_targets = {
     start() {
       if (running) return;
@@ -317,14 +300,15 @@
       schedule_spawn();
       window.addEventListener("vc:shoot", shoot);
       raf = requestAnimationFrame(loop);
+      emit("vc:targets_started", {});
     },
-
     stop() {
       running = false;
       cancelAnimationFrame(raf);
       window.removeEventListener("vc:shoot", shoot);
       if (sprite) sprite.style.opacity = "0";
       current = null;
+      emit("vc:targets_stopped", {});
     },
   };
 })();
