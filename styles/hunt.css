@@ -1,15 +1,6 @@
-/* styles/hunt.css
-Panel-based scaffold for the hunting minigame.
-
-Update these three variables to match your actual assets.
-(Keep URLs relative to index.html for GitHub Pages sanity.)
-*/
 :root{
   --hunt-bg-url: url("../assets/backgrounds/hunt_bg.webp");
   --rifle-overlay-url: url("../assets/overlays/hands_rifle.png");
-
-  /* Optional: if you want a reticle image instead of CSS lines */
-  /* --reticle-url: url("../assets/ui/reticle.png"); */
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
@@ -19,8 +10,12 @@ Update these three variables to match your actual assets.
   --panel-bg: rgba(18, 14, 10, 0.78);
   --panel-border: rgba(245, 225, 180, 0.35);
   --text: rgba(245, 235, 215, 0.95);
-  --muted: rgba(245, 235, 215, 0.75);
+  --muted: rgba(245, 235, 215, 0.82);
 }
+
+/* HARD REQUIREMENT:
+   Make the HTML [hidden] attribute work in every browser/environment. */
+[hidden]{ display:none !important; }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
@@ -39,7 +34,6 @@ body{
   touch-action: manipulation;
 }
 
-/* Layer base */
 .layer{
   position:absolute;
   inset:0;
@@ -51,15 +45,10 @@ body{
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
-  filter: none;
 }
 
-/* Targets layer */
-.layer-targets{
-  pointer-events:none;
-}
-
-/* Demo target sprite baseline */
+/* Targets */
+.layer-targets{ pointer-events:none; }
 .target-sprite{
   position:absolute;
   left:0;
@@ -70,12 +59,9 @@ body{
   user-select:none;
 }
 
-/* UI layer */
-.layer-ui{
-  pointer-events:none;
-}
+/* UI */
+.layer-ui{ pointer-events:none; }
 
-/* Reticle: CSS lines (works without a separate asset) */
 .reticle{
   position:absolute;
   left:50%;
@@ -84,9 +70,10 @@ body{
   height:220px;
   transform: translate(-50%, -50%);
   opacity:0.9;
+  border: 2px solid rgba(240, 235, 220, 0.35);
+  border-radius: 999px;
 }
 
-/* Crosshair lines */
 .reticle::before,
 .reticle::after{
   content:"";
@@ -97,26 +84,9 @@ body{
   background: rgba(240, 235, 220, 0.85);
   box-shadow: 0 0 6px rgba(0,0,0,0.55);
 }
+.reticle::before{ width:3px; height:220px; }
+.reticle::after{ width:220px; height:3px; }
 
-/* Vertical line */
-.reticle::before{
-  width:3px;
-  height:220px;
-}
-
-/* Horizontal line */
-.reticle::after{
-  width:220px;
-  height:3px;
-}
-
-/* Subtle ring */
-.reticle{
-  border: 2px solid rgba(240, 235, 220, 0.35);
-  border-radius: 999px;
-}
-
-/* Rifle overlay */
 .rifle-overlay{
   position:absolute;
   inset:0;
@@ -150,10 +120,7 @@ body{
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-
-.btn-fire:active{
-  transform: translateY(1px);
-}
+.btn-fire:active{ transform: translateY(1px); }
 
 .debug-row{
   width:min(720px, 92vw);
@@ -166,32 +133,47 @@ body{
 }
 
 .btn-secondary{
-  height:40px;
+  height:42px;
   padding: 0 14px;
   border-radius: 12px;
   border: 1px solid rgba(245,225,180,0.35);
-  background: rgba(30, 24, 18, 0.70);
-  color: var(--muted);
-  font-weight: 700;
+  background: rgba(30, 24, 18, 0.72);
+  color: rgba(245,235,215,0.92);
+  font-weight: 800;
+  font-size: 14px;
 }
 
 .hud-text{
-  font-size: 13px;
-  color: var(--muted);
-  opacity:0.9;
+  font-size: 14px;      /* was too tiny */
+  color: rgba(245,235,215,0.92); /* was too gray */
+  opacity: 1;
 }
 
-/* Modal */
+/* Modal (default CLOSED because it's [hidden]) */
 .modal-backdrop{
   position:absolute;
   inset:0;
-  background: rgba(0,0,0,0.62);
+  background: rgba(0,0,0,0.68);
   display:flex;
   align-items:center;
   justify-content:center;
   padding: calc(20px + var(--safe-top)) calc(16px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(16px + var(--safe-left));
   z-index: 9999;
   pointer-events:auto;
+  backdrop-filter: blur(2px);
+}
+
+/* Extra safety:
+   If someone removes the hidden attribute accidentally, it still won’t block
+   unless explicitly opened with .is-open */
+.modal-backdrop:not(.is-open){
+  pointer-events:none;
+  opacity:0;
+}
+
+.modal-backdrop.is-open{
+  pointer-events:auto;
+  opacity:1;
 }
 
 .modal-panel{
@@ -214,14 +196,12 @@ body{
   letter-spacing: 0.10em;
 }
 
-.modal-body{
-  padding: 14px 18px 8px 18px;
-}
+.modal-body{ padding: 14px 18px 8px 18px; }
 
 .modal-outcome{
   margin: 0 0 14px 0;
   color: var(--text);
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .modal-grid{
@@ -241,19 +221,8 @@ body{
   background: rgba(10, 8, 6, 0.35);
 }
 
-.row .label{
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.row .value{
-  color: var(--text);
-  font-weight: 900;
-}
-
-.row-optional{
-  opacity:0.95;
-}
+.row .label{ color: var(--muted); font-weight: 800; }
+.row .value{ color: var(--text); font-weight: 900; }
 
 .modal-footer{
   padding: 12px 18px 18px 18px;
@@ -274,7 +243,7 @@ body{
   text-transform: uppercase;
 }
 
-/* Optional Guides (debug) */
+/* Debug guides */
 .guides-on .reticle{
   outline: 2px dashed rgba(255,255,255,0.25);
   outline-offset: 6px;
