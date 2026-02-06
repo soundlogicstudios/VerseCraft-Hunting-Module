@@ -14,7 +14,7 @@
 
   /* THE ONE KNOB YOU CARE ABOUT */
   /* Negative = move rifle UP, Positive = move rifle DOWN */
-  --rifle-y: 0px;
+  --rifle-y: 25px;
 
   /* COLORS */
   --panel-bg: rgba(18,14,10,0.82);
