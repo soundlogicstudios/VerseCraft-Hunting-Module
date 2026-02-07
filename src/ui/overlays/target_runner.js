@@ -1,9 +1,14 @@
 /* src/overlays/target_runner.js
    VerseCraft Target Runner (ROOT-ABSOLUTE ASSET PATHS + DEBUG)
 
-   HARDENING UPDATE:
-   - Targets now ONLY change to a new random spawn AFTER the current sprite is offscreen.
-   - On kill, target enters an EXITING state and continues moving until it leaves the screen.
+   HARDENING UPDATE (v2):
+   - Targets ONLY spawn when no active target exists AND spawn delay elapsed.
+   - If modal is open (#modalBackdrop has .modal-open), gameplay PAUSES:
+       - no movement
+       - no spawn
+   - On KILL:
+       - sprite is hidden immediately (no “escape” motion behind modal)
+       - target is forced offscreen and despawned right away (satisfies “only change when offscreen” rule)
 */
 
 (() => {
@@ -12,6 +17,7 @@
   const CONFIG = {
     mount_selector: "body",
     reticule_selector: "#reticule",
+    modal_selector: "#modalBackdrop", // used to pause when modal is open
     z_index: 40,
 
     spawn_delay_ms: [250, 900],
@@ -73,6 +79,7 @@
       -webkit-user-drag: none;
       will-change: transform;
       filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
+      transition: opacity 120ms linear;
     }
     .vc-target-debug {
       position: absolute;
@@ -127,12 +134,23 @@
     return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
   }
 
-  function is_offscreen_with_margin(x, margin = 300) {
-    return x < -margin || x > window.innerWidth + margin;
+  function modal_is_open() {
+    const m = document.querySelector(CONFIG.modal_selector);
+    if (!m) return false;
+    return m.classList.contains("modal-open");
+  }
+
+  // “offscreen” helpers
+  function force_offscreen_x(dir, margin = 400) {
+    // dir is "right" or "left" (the direction the sprite is facing / moving from)
+    // but we want to force it WELL outside the viewport so despawn is instant + safe
+    if (dir === "right") return window.innerWidth + margin;
+    return -margin;
   }
 
   let layer, sprite, debugEl;
   let running = false;
+  let paused = false;
   let raf = 0;
   let last_t = 0;
 
@@ -157,7 +175,6 @@
     sprite.decoding = "async";
     sprite.loading = "eager";
 
-    // HARD DEBUG: tell you exactly which URL failed
     sprite.addEventListener("error", () => {
       const msg = `IMG ERROR\nsrc: ${sprite.src}\nbaseURI: ${document.baseURI}`;
       if (CONFIG.debug) console.error(msg);
@@ -194,6 +211,7 @@
     const type = pick_weighted(WEIGHTS);
     const dir = Math.random() < 0.5 ? "right" : "left";
 
+    // DO NOT TOUCH YOUR TRACK BAND — fixed by you
     const band_top = vh(CONFIG.target_band_top_vh);
     const band_bot = vh(CONFIG.target_band_bottom_vh);
 
@@ -212,8 +230,6 @@
       attack: false,
       deadline: 0,
       scale,
-      exiting: false,       // HARDEN: only swap targets after offscreen
-      exit_reason: "",      // why we’re exiting (killed, etc.)
     };
 
     sprite.src = sprite_src(type, dir, false);
@@ -223,7 +239,7 @@
     emit("vc:target_spawn", { type, dir });
   }
 
-  // HARD DESPAWN: clears immediately + schedules next spawn (used only when already offscreen or forced)
+  // DESPAWN: clears immediately + schedules next spawn
   function hard_despawn(reason) {
     if (!current) return;
     emit("vc:target_despawn", { type: current.type, reason });
@@ -232,38 +248,26 @@
     schedule_spawn();
   }
 
-  // SOFT DESPAWN: do NOT swap targets until offscreen
-  function soft_exit(reason) {
-    if (!current) return;
-
-    // Mark exiting; keep moving until offscreen, then hard_despawn.
-    current.exiting = true;
-    current.exit_reason = reason;
-
-    // Slightly fade so it reads as “resolved” but still physically exits the screen.
-    sprite.style.opacity = "0.35";
-  }
-
   function update(dt) {
-    // If no current target, we may spawn a new one (ONLY when nothing exists).
+    // Pause if modal is open (or externally paused)
+    paused = paused || modal_is_open();
+
+    if (paused) {
+      // keep current sprite frozen in place; no movement; no spawns
+      return;
+    }
+
+    // Spawn only when there is NO active target
     if (!current) {
       if (Date.now() >= next_spawn) spawn();
       return;
     }
 
-    // Move target every frame (alive OR exiting)
+    // Move target
     pos.x += vx * dt;
     sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${current.scale})`;
 
-    // If exiting, only finalize despawn once it is fully offscreen
-    if (current.exiting) {
-      if (is_offscreen_with_margin(pos.x, 300)) {
-        hard_despawn(`offscreen_after_${current.exit_reason || "exit"}`);
-      }
-      return;
-    }
-
-    // Bear attack window only matters while ALIVE (not exiting)
+    // Bear attack window
     if (current.type === "bear" && current.attack) {
       if (Date.now() >= current.deadline) {
         emit("vc:player_injured", { source: "bear" });
@@ -272,8 +276,9 @@
       }
     }
 
-    // Normal offscreen cleanup (alive)
-    if (is_offscreen_with_margin(pos.x, 300)) {
+    // Offscreen cleanup (alive)
+    const margin = 320;
+    if (pos.x < -margin || pos.x > window.innerWidth + margin) {
       hard_despawn("offscreen");
     }
   }
@@ -281,18 +286,40 @@
   function loop(t) {
     if (!running) return;
     if (!last_t) last_t = t;
+
     const dt = Math.min((t - last_t) / 1000, 0.05);
     last_t = t;
+
+    // If modal is NOT open, allow runtime to clear pause
+    if (!modal_is_open()) paused = false;
+
     update(dt);
     raf = requestAnimationFrame(loop);
   }
 
+  function kill_instant(reason = "killed") {
+    if (!current) return;
+
+    // 1) Hide immediately so player NEVER sees it “escape”
+    sprite.style.opacity = "0";
+
+    // 2) Force it offscreen instantly (satisfies “only change when offscreen”)
+    const forcedX = force_offscreen_x(current.dir, 600);
+    pos.x = forcedX;
+    sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${current.scale})`;
+
+    // 3) Despawn now (spawns are already prevented during modal via paused/modal check)
+    hard_despawn(reason);
+  }
+
   function shoot() {
-    // If no target or we’re exiting, don’t allow target changes / interactions.
-    if (!current || current.exiting) {
+    if (!current) {
       emit("vc:shot_miss", {});
       return;
     }
+
+    // If modal is open, ignore shots (safety)
+    if (modal_is_open()) return;
 
     const p = get_reticule_point();
     if (!p) return;
@@ -306,29 +333,27 @@
     current.hp--;
     emit("vc:shot_hit", { type: current.type, hp: current.hp });
 
+    // Bear special: enter attack state at hp=1
     if (current.type === "bear") {
       if (current.hp === 1 && !current.attack) {
         current.attack = true;
         current.deadline = Date.now() + CONFIG.bear_attack_window_ms;
-
-        // Bear is still alive, so swap to attack sprite is allowed here.
         sprite.src = sprite_src("bear", current.dir, true);
         emit("vc:bear_attack_state", {});
         return;
       }
       if (current.hp <= 0) {
         emit("vc:target_killed", { type: "bear" });
-
-        // HARDEN: do not despawn immediately -> exit until offscreen
-        soft_exit("killed");
+        // HARDEN: instant kill remove (no visible run-off)
+        kill_instant("killed");
       }
       return;
     }
 
     emit("vc:target_killed", { type: current.type });
 
-    // HARDEN: do not despawn immediately -> exit until offscreen
-    soft_exit("killed");
+    // HARDEN: instant kill remove (no visible run-off)
+    kill_instant("killed");
   }
 
   window.vc_targets = {
@@ -337,6 +362,7 @@
       inject_css();
       ensure_layer();
       running = true;
+      paused = false;
       last_t = 0;
       schedule_spawn();
       window.addEventListener("vc:shoot", shoot);
@@ -350,6 +376,15 @@
       if (sprite) sprite.style.opacity = "0";
       current = null;
       emit("vc:targets_stopped", {});
+    },
+
+    // Optional external controls if you want them later:
+    pause() { paused = true; },
+    resume() { paused = false; },
+
+    // Debug helpers
+    _debug_state() {
+      return { running, paused, current: current ? { ...current } : null, pos: { ...pos }, vx, next_spawn };
     },
   };
 })();
