@@ -15,6 +15,7 @@
 .rifle-overlay img {
   display: block;
   width: 100%;
+  max-height: 44vh;
   height: auto;
   pointer-events: none;
   user-select: none;
