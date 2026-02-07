@@ -1,5 +1,6 @@
 /* src/overlays/target_runner.js
-   VerseCraft Target Runner (ROOT-ABSOLUTE ASSET PATHS + DEBUG)
+   VerseCraft Target Runner - Enhanced for Day, Bag, Bullet, and Trip Logic
+   Modular: works standalone or as a component in CYOA engines.
 */
 
 (() => {
@@ -19,7 +20,7 @@
     debug: true, // set false when done
   };
 
-  // IMPORTANT: ROOT-ABSOLUTE PATHS (leading slash)
+  // ROOT-ABSOLUTE PATHS
   const ASSETS = {
     squirrel: {
       left:  "/assets/targets/squirrel-left-facing.webp",
@@ -40,6 +41,7 @@
     },
   };
 
+  // Used for weighted random target selection
   const WEIGHTS = [
     { type: "squirrel", w: 0.45 },
     { type: "rabbit",   w: 0.35 },
@@ -54,6 +56,32 @@
     bear:     { speed: [140, 260], scale: [0.90, 1.10] },
   };
 
+  // === HUNT STATE TRACKER ===
+  const HUNT_STATE = {
+    day: 1,                        // Internal calendar day
+    bag: [],                       // Animals hit this hunt: {type, weight}
+    bag_weight: 0,                 // Total lbs in bag
+    bag_limit: 100,                // Max carry weight per hunt
+    bullets: 7,                    // Bullets left this hunt
+    bullet_limit: 7,               // Bullets per hunt
+    hunt_log: [],                  // Past hunts: {day, bag, bag_weight, bullets_used, away_from_camp}
+    hunt_trip_days: 0,             // Consecutive days away from camp (max 3)
+    in_return_to_camp: false,      // True if returning (can't hunt)
+    return_days_left: 0,           // Days left returning to camp
+  };
+
+  // Utility: Get animal weight (Oregon Trail-ish)
+  function get_animal_weight(type) {
+    switch(type) {
+      case "bear":    return 200;
+      case "deer":    return 60;
+      case "rabbit":  return 2;
+      case "squirrel":return 1;
+      default:        return 0;
+    }
+  }
+
+  // === CSS Injection ===
   const CSS = `
     .vc-target-layer {
       position: absolute;
@@ -95,6 +123,7 @@
     document.head.appendChild(s);
   }
 
+  // === Helpers ===
   const rand = (a, b) => a + Math.random() * (b - a);
   const vh = v => (v / 100) * window.innerHeight;
 
@@ -124,6 +153,7 @@
            y >= rect.top  && y <= rect.bottom;
   }
 
+  // === Target Layer Logic ===
   let layer, sprite, debugEl;
   let running = false;
   let raf = 0;
@@ -149,166 +179,212 @@
     sprite.alt = "target";
     sprite.decoding = "async";
     sprite.loading = "eager";
-
-    // HARD DEBUG: tell you exactly which URL failed
-    sprite.addEventListener("error", () => {
-      const msg = `IMG ERROR\nsrc: ${sprite.src}\nbaseURI: ${document.baseURI}`;
-      if (CONFIG.debug) console.error(msg);
-      if (debugEl) debugEl.textContent = msg;
-      emit("vc:target_img_error", { src: sprite.src, baseURI: document.baseURI });
-    });
-
-    sprite.addEventListener("load", () => {
-      if (!CONFIG.debug) return;
-      const msg = `IMG OK\nsrc: ${sprite.src}`;
-      if (debugEl) debugEl.textContent = msg;
-    });
-
     layer.appendChild(sprite);
 
-    if (CONFIG.debug) {
-      debugEl = document.createElement("div");
-      debugEl.className = "vc-target-debug";
-      debugEl.textContent = "Target debug ready.";
-      layer.appendChild(debugEl);
-    }
+    debugEl = document.createElement("div");
+    debugEl.className = "vc-target-debug";
+    debugEl.style.display = CONFIG.debug ? "" : "none";
+    layer.appendChild(debugEl);
   }
 
-  function sprite_src(type, dir, attack) {
-    if (type === "bear" && attack) return ASSETS.bear.attack;
-    return ASSETS[type][dir];
-  }
+  function spawn_target() {
+    // Guard: no spawning if returning to camp or not running
+    if (HUNT_STATE.in_return_to_camp || !running) return;
 
-  function schedule_spawn() {
-    next_spawn = Date.now() + rand(CONFIG.spawn_delay_ms[0], CONFIG.spawn_delay_ms[1]);
-  }
-
-  function spawn() {
     const type = pick_weighted(WEIGHTS);
-    const dir = Math.random() < 0.5 ? "right" : "left";
-
-    const band_top = vh(CONFIG.target_band_top_vh);
-    const band_bot = vh(CONFIG.target_band_bottom_vh);
-
+    const dir = Math.random() < 0.5 ? "left" : "right";
     const prof = PROFILE[type];
     const speed = rand(prof.speed[0], prof.speed[1]);
     const scale = rand(prof.scale[0], prof.scale[1]);
+    const asset = ASSETS[type][dir];
 
-    pos.y = rand(band_top, band_bot);
-    pos.x = dir === "right" ? -240 : window.innerWidth + 240;
-    vx = dir === "right" ? speed : -speed;
+    const top = rand(CONFIG.target_band_top_vh, CONFIG.target_band_bottom_vh);
+    pos.x = dir === "left" ? -180 : window.innerWidth + 180;
+    pos.y = vh(top);
 
-    current = {
-      type,
-      dir,
-      hp: type === "bear" ? 2 : 1,
-      attack: false,
-      deadline: 0,
-      scale,
-    };
+    vx = dir === "left" ? speed : -speed;
 
-    sprite.src = sprite_src(type, dir, false);
-    sprite.style.opacity = "1";
-    sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${scale})`;
+    sprite.src = asset;
+    sprite.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${scale})`;
+    sprite.style.display = "";
 
-    emit("vc:target_spawn", { type, dir });
+    current = { type, dir, scale, speed, top, asset };
+
+    if (CONFIG.debug) {
+      debugEl.textContent =
+        `Target: ${type} (${dir}) | Speed: ${speed.toFixed(2)}px/s | Scale: ${scale.toFixed(2)}\n`
+        + `Day: ${HUNT_STATE.day}, Bullets: ${HUNT_STATE.bullets}, Bag: ${HUNT_STATE.bag_weight} lbs`;
+    }
   }
 
-  function despawn(reason) {
-    if (!current) return;
-    emit("vc:target_despawn", { type: current.type, reason });
+  function hide_target() {
+    sprite.style.display = "none";
     current = null;
-    sprite.style.opacity = "0";
-    schedule_spawn();
   }
 
-  function update(dt) {
-    if (!current) {
-      if (Date.now() >= next_spawn) spawn();
-      return;
-    }
-
-    if (current.type === "bear" && current.attack) {
-      if (Date.now() >= current.deadline) {
-        emit("vc:player_injured", { source: "bear" });
-        despawn("bear_attack_timeout");
-        return;
-      }
-    }
-
-    pos.x += vx * dt;
-    sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${current.scale})`;
-
-    if (pos.x < -300 || pos.x > window.innerWidth + 300) {
-      despawn("offscreen");
-    }
-  }
-
-  function loop(t) {
+  function game_loop(ts) {
     if (!running) return;
-    if (!last_t) last_t = t;
-    const dt = Math.min((t - last_t) / 1000, 0.05);
-    last_t = t;
-    update(dt);
-    raf = requestAnimationFrame(loop);
+    if (!last_t) last_t = ts;
+    const dt = (ts - last_t) / 1000;
+    last_t = ts;
+
+    if (HUNT_STATE.in_return_to_camp) {
+      hide_target();
+      if (CONFIG.debug) {
+        debugEl.textContent =
+          `Returning to camp...\nDays left: ${HUNT_STATE.return_days_left}\n`
+          + `You have to make it back to camp before the meat spoils!`;
+      }
+      return; // skip all animation until back at camp
+    }
+
+    if (current) {
+      pos.x += vx * dt;
+      sprite.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${current.scale})`;
+
+      // Remove if offscreen
+      if ((vx < 0 && pos.x < -200) || (vx > 0 && pos.x > window.innerWidth + 200)) {
+        hide_target();
+        next_spawn = performance.now() + rand(CONFIG.spawn_delay_ms[0], CONFIG.spawn_delay_ms[1]);
+      }
+    } else if (performance.now() >= next_spawn) {
+      spawn_target();
+    }
+
+    raf = requestAnimationFrame(game_loop);
   }
 
-  function shoot() {
-    if (!current) {
-      emit("vc:shot_miss", {});
-      return;
+  // === Firing & Hit Detection ===
+  function fire_gun() {
+    if (HUNT_STATE.in_return_to_camp) {
+      if (CONFIG.debug) alert("You have to make it back to camp before the meat spoils!");
+      return false;
     }
-
-    const p = get_reticule_point();
-    if (!p) return;
-
-    const r = sprite.getBoundingClientRect();
-    if (!rect_contains(r, p.x, p.y)) {
-      emit("vc:shot_miss", { type: current.type });
-      return;
+    if (HUNT_STATE.bullets <= 0) {
+      if (CONFIG.debug) alert("You're out of bullets for today!");
+      return false;
     }
+    if (!current) return false;
 
-    current.hp--;
-    emit("vc:shot_hit", { type: current.type, hp: current.hp });
+    HUNT_STATE.bullets--; // Spend one bullet
 
-    if (current.type === "bear") {
-      if (current.hp === 1 && !current.attack) {
-        current.attack = true;
-        current.deadline = Date.now() + CONFIG.bear_attack_window_ms;
-        sprite.src = sprite_src("bear", current.dir, true);
-        emit("vc:bear_attack_state", {});
-        return;
-      }
-      if (current.hp <= 0) {
-        emit("vc:target_killed", { type: "bear" });
-        despawn("killed");
-      }
-      return;
+    const pt = get_reticule_point();
+    if (!pt) return false;
+
+    // Get target sprite rect
+    const rect = sprite.getBoundingClientRect();
+    if (rect_contains(rect, pt.x, pt.y)) {
+      emit("vc-hunt-hit", { ...current, x: pos.x, y: pos.y });
+      hide_target();
+      next_spawn = performance.now() + rand(CONFIG.spawn_delay_ms[0], CONFIG.spawn_delay_ms[1]);
+      return true;
     }
-
-    emit("vc:target_killed", { type: current.type });
-    despawn("killed");
+    return false;
   }
 
-  window.vc_targets = {
-    start() {
-      if (running) return;
+  // === Handle Bag & Hunt Logging on Hits ===
+  window.addEventListener("vc-hunt-hit", e => {
+    const { type } = e.detail;
+    const w = get_animal_weight(type);
+
+    if (HUNT_STATE.bag_weight + w > HUNT_STATE.bag_limit) {
+      if (CONFIG.debug) alert("Bag limit reached! End hunt to continue.");
+      return;
+    }
+
+    HUNT_STATE.bag.push({ type, weight: w });
+    HUNT_STATE.bag_weight += w;
+    if (CONFIG.debug) {
+      console.log(`Added ${type}: ${w} lbs, bag now ${HUNT_STATE.bag_weight} lbs`);
+    }
+  });
+
+  // === Public API (For CYOA/External UI Integration) ===
+  window.VC_Hunt = {
+    start: () => {
       inject_css();
       ensure_layer();
       running = true;
       last_t = 0;
-      schedule_spawn();
-      window.addEventListener("vc:shoot", shoot);
-      raf = requestAnimationFrame(loop);
-      emit("vc:targets_started", {});
+      raf = requestAnimationFrame(game_loop);
+
+      if (CONFIG.debug) debugEl.style.display = "";
+      // Reset bullets if starting a new hunt and not returning
+      if (!HUNT_STATE.in_return_to_camp && HUNT_STATE.bullets !== HUNT_STATE.bullet_limit)
+        HUNT_STATE.bullets = HUNT_STATE.bullet_limit;
     },
-    stop() {
+    stop: () => {
       running = false;
       cancelAnimationFrame(raf);
-      window.removeEventListener("vc:shoot", shoot);
-      if (sprite) sprite.style.opacity = "0";
-      current = null;
-      emit("vc:targets_stopped", {});
+      hide_target();
+      if (CONFIG.debug) debugEl.style.display = "none";
     },
+    fire_gun,
+    is_running: () => running,
+
+    // End a hunting day, advance calendar, handle camp logic
+    end_hunt: () => {
+      if (HUNT_STATE.in_return_to_camp) {
+        if (CONFIG.debug) alert("You're already returning to camp!");
+        return;
+      }
+
+      // Log this day's hunt
+      HUNT_STATE.hunt_log.push({
+        day: HUNT_STATE.day,
+        bag: [...HUNT_STATE.bag],
+        bag_weight: HUNT_STATE.bag_weight,
+        bullets_used: HUNT_STATE.bullet_limit - HUNT_STATE.bullets,
+        away_from_camp: HUNT_STATE.hunt_trip_days + 1
+      });
+
+      HUNT_STATE.day++;
+      HUNT_STATE.hunt_trip_days++;
+
+      // Reset bag/bullets for next hunt day (if not returning yet)
+      HUNT_STATE.bag = [];
+      HUNT_STATE.bag_weight = 0;
+      HUNT_STATE.bullets = HUNT_STATE.bullet_limit;
+
+      if (HUNT_STATE.hunt_trip_days >= 3) {
+        HUNT_STATE.in_return_to_camp = true;
+        HUNT_STATE.return_days_left = 2;
+        if (CONFIG.debug) alert("You've hunted 3 days and must now return to camp. 2 days will pass.");
+      }
+
+      if (CONFIG.debug) {
+        console.log(`Hunt ended. Day: ${HUNT_STATE.day - 1}, Trip day: ${HUNT_STATE.hunt_trip_days}, Total: ${HUNT_STATE.hunt_log.at(-1).bag_weight} lbs`);
+      }
+    },
+
+    // Advance a day during return to camp (call 2x when in return state)
+    advance_day: () => {
+      if (HUNT_STATE.in_return_to_camp) {
+        HUNT_STATE.day++;
+        HUNT_STATE.return_days_left--;
+        if (HUNT_STATE.return_days_left <= 0) {
+          HUNT_STATE.in_return_to_camp = false;
+          HUNT_STATE.hunt_trip_days = 0;
+          HUNT_STATE.bullets = HUNT_STATE.bullet_limit;
+          if (CONFIG.debug) alert("You are back at camp and can hunt again.");
+        } else if (CONFIG.debug) {
+          alert(`Returning to camp... ${HUNT_STATE.return_days_left} day(s) left.`);
+        }
+        // No bag/bullets on return days
+      }
+    },
+
+    // Current game/hunt state (for UI, save, or CYOA integration)
+    get_state: () => JSON.parse(JSON.stringify(HUNT_STATE)),
+    is_away_from_camp: () => HUNT_STATE.in_return_to_camp,
   };
+
+  // Wire up firing to a custom event ("vc-hunt-fire"), or click/tap
+  window.addEventListener("vc-hunt-fire", fire_gun);
+  window.addEventListener("mousedown", e => {
+    if (e.button !== 0) return; // only left-click
+    fire_gun();
+  });
+  window.addEventListener("touchstart", fire_gun);
+
 })();
