@@ -6,20 +6,12 @@
   <title>VerseCraft Hunting Module - Prototype</title>
 
   <link rel="stylesheet" href="styles/hunt.css" />
+  <link rel="stylesheet" href="styles/overlays/rifle_overlay.css" />
 </head>
 
 <body>
   <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
     <div class="layer layer-bg" aria-hidden="true"></div>
-    <div class="layer layer-targets" aria-hidden="true">
-  <img
-    id="demoTarget"
-    class="target-sprite"
-    src="assets/targets/squirrel-right-facing.webp"
-    alt=""
-    draggable="false"
-  />
-</div>
 
     <div class="layer layer-targets" aria-hidden="true">
       <img id="demoTarget" class="target-sprite"
@@ -30,27 +22,13 @@
     <div class="layer layer-ui" aria-hidden="true">
       <div id="reticle" class="reticle" aria-hidden="true"></div>
 
-      <!-- Rifle overlay as background image via CSS (.rifle-overlay) -->
-      <div class="rifle-overlay" aria-hidden="true"></div>
+      <div class="rifle-overlay" aria-hidden="true">
+        <!-- ✅ CONFIRMED PATH -->
+        <img id="rifleOverlayImg" src="assets/overlays/rifle-overlay.webp" alt="" draggable="false" />
+      </div>
     </div>
 
     <div class="layer layer-controls" aria-label="Controls">
-      <!-- Minimal HUD pinned to TOP via CSS (.mini-hud in hunt.css) -->
-      <div class="mini-hud" aria-label="HUD">
-        <div class="hudItem" aria-hidden="true">
-          <span class="label">Ammo</span>
-          <span id="ammoHud" class="value">—</span>
-        </div>
-        <div class="hudItem" aria-hidden="true">
-          <span class="label">Food</span>
-          <span id="foodHud" class="value">—</span>
-        </div>
-        <div class="hudItem" aria-hidden="true">
-          <span class="label">Day</span>
-          <span id="dayHud" class="value">—</span>
-        </div>
-      </div>
-
       <button id="fireBtn" class="btn-fire" type="button">FIRE</button>
 
       <!-- Debug row only when ?debug=1 -->
@@ -58,6 +36,12 @@
         <button id="resetBtn" class="btn-secondary" type="button">Reset Pass</button>
         <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
         <span id="hudText" class="hud-text">DEBUG</span>
+      </div>
+
+      <!-- Minimal HUD always visible -->
+      <div class="mini-hud" aria-label="HUD">
+        <span id="ammoHud">Ammo: —</span>
+        <span id="animalHud">Target: —</span>
       </div>
     </div>
 
@@ -74,8 +58,7 @@
           <div class="modal-grid" role="group" aria-label="Hunt Summary">
             <div class="row"><div class="label">Target</div><div id="targetValue" class="value">—</div></div>
             <div class="row"><div class="label">Ammunition used</div><div id="ammoValue" class="value">—</div></div>
-            <div class="row"><div class="label">Food gained</div><div id="foodValue" class="value">—</div></div>
-            <div class="row"><div class="label">Total Food</div><div id="foodTotalValue" class="value">—</div></div>
+            <div class="row"><div class="label">Meat gained</div><div id="meatValue" class="value">—</div></div>
           </div>
 
           <div id="noteRow" class="row" style="display:none; margin-top:10px;">
@@ -106,8 +89,7 @@
     const hudText = el("hudText");
 
     const ammoHud = el("ammoHud");
-    const foodHud = el("foodHud");
-    const dayHud  = el("dayHud");
+    const animalHud = el("animalHud");
 
     const modalBackdrop = el("modalBackdrop");
     const continueBtn = el("continueBtn");
@@ -115,8 +97,7 @@
     const huntOutcome = el("huntOutcome");
     const targetValue = el("targetValue");
     const ammoValue = el("ammoValue");
-    const foodValue = el("foodValue");
-    const foodTotalValue = el("foodTotalValue");
+    const meatValue = el("meatValue");
     const noteRow = el("noteRow");
     const noteValue = el("noteValue");
 
@@ -127,34 +108,15 @@
     const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
     if (DEBUG) debugRow.hidden = false;
 
-    // ---------- GAME RULES (LOCKED SIMPLE VERSION) ----------
-    const AMMO_PER_ROUND = 7;       // YOU asked: 7 shots per "daily" round
-    const FOOD_CAP_LBS = 100;       // YOU asked: can't carry more than 100 lbs
-    const HIT_MODAL_DELAY_MS = 220; // small pause so the kill doesn't "escape" behind modal
-
-    // Food gained by animal (base), then scaled by hit quality
-    const FOOD_BASE = {
-      squirrel: 6,
-      rabbit:  10,
-      deer:    35,
-      bear:    60
-    };
-
-    // multipliers by outcome
-    const FOOD_MULT = {
-      "Perfect hit": 1.00,
-      "Solid hit":   0.75,
-      "Graze":       0.35,
-      "Miss":        0.00
-    };
+    // Rifle offset knob (+ down, - up)
+    document.documentElement.style.setProperty("--vc-rifle-offset-y", "28px");
 
     // ---------- Modal ----------
     function openModal(payload){
       huntOutcome.textContent = `Outcome: ${payload.outcome}`;
       targetValue.textContent = payload.target;
       ammoValue.textContent = payload.ammoUsed;
-      foodValue.textContent = payload.foodGained;
-      foodTotalValue.textContent = payload.foodTotal;
+      meatValue.textContent = payload.meat;
 
       if (payload.note && DEBUG){
         noteValue.textContent = payload.note;
@@ -170,12 +132,6 @@
     function closeModal(){
       modalBackdrop.classList.remove("modal-open");
       modalBackdrop.classList.add("modal-closed");
-
-      // If hunting is over, keep everything frozen.
-      if (huntOver) return;
-
-      // Resume and start next pass cleanly after modal closes
-      scheduleNextPass();
     }
 
     window.vc_hunt_close_modal = closeModal;
@@ -198,7 +154,7 @@
       { type: "bear",     w: 0.05 }
     ];
 
-    // Speed per animal (px/sec)
+    // Speed per animal (px/sec) — tune these
     const SPEED = {
       squirrel: 520,
       rabbit:   460,
@@ -215,10 +171,7 @@
     };
 
     // ---------- State ----------
-    let day = 1;           // simple "round/day" label
-    let ammo = AMMO_PER_ROUND;
-    let food = 0;
-
+    let ammo = 20; // set your starting ammo here
     let currentAnimal = "squirrel";
     let direction = 1; // 1 = left->right, -1 = right->left
     let x = -200;
@@ -227,14 +180,10 @@
 
     let passActive = false;
     let shotTakenThisPass = false;
-    let huntOver = false;
-
-    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
     function setHud(){
-      ammoHud.textContent = String(ammo);
-      foodHud.textContent = `${food} lbs`;
-      dayHud.textContent  = `Day ${day}`;
+      ammoHud.textContent = `Ammo: ${ammo}`;
+      animalHud.textContent = `Target: ${currentAnimal.toUpperCase()}`;
     }
 
     function pickWeighted(){
@@ -254,7 +203,6 @@
 
     function viewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
 
-    // DO NOT CHANGE: your locked track position
     function setTargetTrack(){
       const { h } = viewport();
       demoTarget.style.top = `${Math.round(h * 0.46)}px`;
@@ -268,33 +216,13 @@
       demoTarget.style.transform = `translate3d(${x}px,0,0)`;
     }
 
-    function hideTargetInstant(){
-      demoTarget.style.opacity = "0";
-    }
-
-    function showTarget(){
-      demoTarget.style.opacity = "1";
-    }
-
     function startNewPass(){
-      if (huntOver) return;
-
-      // If we hit caps, end the hunt and freeze.
-      if (ammo <= 0){
-        endHunt("Out of ammo");
-        return;
-      }
-      if (food >= FOOD_CAP_LBS){
-        endHunt("Food limit reached");
-        return;
-      }
-
+      // Randomize every PASS (whether shot or not)
       currentAnimal = pickWeighted();
       direction = (Math.random() < 0.5) ? 1 : -1;
       shotTakenThisPass = false;
       passActive = true;
 
-      showTarget();
       setTargetFacingForDirection(direction);
       setHud();
       setTargetTrack();
@@ -303,34 +231,13 @@
       if (DEBUG) hudText.textContent = `PASS: ${currentAnimal} dir=${direction} speed=${SPEED[currentAnimal]}`;
     }
 
-    function scheduleNextPass(){
-      if (huntOver) return;
-      // small delay before next pass
-      setTimeout(() => startNewPass(), 450);
-    }
-
     function endPass(){
       passActive = false;
-      // Do NOT start next pass while modal is open.
-      if (modalBackdrop.classList.contains("modal-open")) return;
-      scheduleNextPass();
-    }
 
-    function endHunt(reason){
-      huntOver = true;
-      passActive = false;
-      fireBtn.disabled = true;
-      fireBtn.textContent = "DONE";
-      hideTargetInstant();
-
-      openModal({
-        outcome: "Hunt Over",
-        target: "—",
-        ammoUsed: "0",
-        foodGained: "0 lbs",
-        foodTotal: `${food} lbs`,
-        note: reason
-      });
+      // small delay before next pass
+      setTimeout(() => {
+        startNewPass();
+      }, 450);
     }
 
     function reticleCenterX(){
@@ -341,25 +248,6 @@
     function targetCenterX(){
       const r = demoTarget.getBoundingClientRect();
       return r.left + r.width / 2;
-    }
-
-    function computeOutcome(){
-      const dx = Math.abs(targetCenterX() - reticleCenterX());
-      const tw = demoTarget.getBoundingClientRect().width || 200;
-      const deltaPct = (dx / tw) * 100;
-
-      let outcome = "Miss";
-      if (deltaPct <= 10) outcome = "Perfect hit";
-      else if (deltaPct <= 25) outcome = "Solid hit";
-      else if (deltaPct <= 40) outcome = "Graze";
-
-      return { outcome, deltaPct };
-    }
-
-    function computeFoodGain(animal, outcome){
-      const base = FOOD_BASE[animal] || 0;
-      const mult = FOOD_MULT[outcome] ?? 0;
-      return Math.round(base * mult);
     }
 
     function tick(now){
@@ -392,21 +280,13 @@
 
     // ---------- Fire ----------
     fireBtn.addEventListener("click", () => {
-      if (huntOver) return;
       if (modalBackdrop.classList.contains("modal-open")) return;
       if (!passActive) return;
       if (shotTakenThisPass) return;
 
-      const cost = AMMO_COST[currentAnimal] || 1;
+      const cost = AMMO_COST[currentAnimal];
       if (ammo < cost){
-        openModal({
-          outcome:"No Ammo",
-          target: currentAnimal.toUpperCase(),
-          ammoUsed:"0",
-          foodGained:"0 lbs",
-          foodTotal:`${food} lbs`,
-          note:"ammo too low"
-        });
+        openModal({ outcome:"No Ammo", target: currentAnimal, ammoUsed:"0", meat:"0", note:"ammo too low" });
         return;
       }
 
@@ -415,61 +295,33 @@
       shotTakenThisPass = true;
       setHud();
 
-      const { outcome, deltaPct } = computeOutcome();
+      const dx = Math.abs(targetCenterX() - reticleCenterX());
+      const tw = demoTarget.getBoundingClientRect().width || 200;
+      const deltaPct = (dx / tw) * 100;
 
-      // Freeze the pass immediately so it doesn't "run away" behind modal
-      passActive = false;
+      let outcome = "Miss";
+      if (deltaPct <= 10) outcome = "Perfect hit";
+      else if (deltaPct <= 25) outcome = "Solid hit";
+      else if (deltaPct <= 40) outcome = "Graze";
 
-      // If hit (not Miss), hide target immediately to sell the kill
-      const gained = computeFoodGain(currentAnimal, outcome);
-      let actuallyGained = gained;
+      // Meat numbers later; placeholders now
+      const meat = (outcome === "Miss") ? "0" : "—";
 
-      if (outcome !== "Miss" && gained > 0){
-        hideTargetInstant();
-        const before = food;
-        food = clamp(food + gained, 0, FOOD_CAP_LBS);
-        actuallyGained = food - before;
-      }
+      openModal({
+        outcome,
+        target: currentAnimal.toUpperCase(),
+        ammoUsed: String(cost),
+        meat,
+        note: `delta ${deltaPct.toFixed(1)}%`
+      });
 
-      setHud();
-
-      // Delay modal slightly so the shot feels like it lands before UI takeover
-      setTimeout(() => {
-        openModal({
-          outcome,
-          target: currentAnimal.toUpperCase(),
-          ammoUsed: String(cost),
-          foodGained: `${actuallyGained} lbs`,
-          foodTotal: `${food} lbs`,
-          note: `delta ${deltaPct.toFixed(1)}%`
-        });
-
-        // Check end conditions right after showing results
-        if (ammo <= 0){
-          // Let user hit Continue, but freeze the hunt.
-          huntOver = true;
-          fireBtn.disabled = true;
-          fireBtn.textContent = "DONE";
-          // Update note when debugging; main reason is obvious: ammo 0
-        } else if (food >= FOOD_CAP_LBS){
-          huntOver = true;
-          fireBtn.disabled = true;
-          fireBtn.textContent = "DONE";
-        }
-      }, HIT_MODAL_DELAY_MS);
+      // End pass immediately after shot (one shot per pass)
+      endPass();
     });
-
-    // When modal closes, we resume by scheduling the next pass (unless huntOver)
-    // closeModal() already handles this.
 
     // ---------- Debug buttons ----------
     if (DEBUG){
-      resetBtn.addEventListener("click", () => {
-        // End current pass immediately, start another (unless huntOver)
-        passActive = false;
-        if (!modalBackdrop.classList.contains("modal-open")) scheduleNextPass();
-      });
-
+      resetBtn.addEventListener("click", () => endPass());
       toggleGuidesBtn.addEventListener("click", toggleGuides);
       hudText.textContent = "BOOT OK";
     }
@@ -482,13 +334,5 @@
     tStart = performance.now();
     raf = requestAnimationFrame(tick);
   </script>
-
-  <script src="src/ui/overlays/target_runner.js"></script>
-  <script>
-    if (window.vc_targets) {
-      window.vc_targets.start();
-    }
-  </script>
 </body>
-
 </html>
