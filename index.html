@@ -482,5 +482,13 @@
     tStart = performance.now();
     raf = requestAnimationFrame(tick);
   </script>
+
+  <script src="src/ui/overlays/target_runner.js"></script>
+  <script>
+    if (window.vc_targets) {
+      window.vc_targets.start();
+    }
+  </script>
 </body>
+
 </html>
