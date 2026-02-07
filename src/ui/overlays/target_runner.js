@@ -1,5 +1,9 @@
 /* src/overlays/target_runner.js
    VerseCraft Target Runner (ROOT-ABSOLUTE ASSET PATHS + DEBUG)
+
+   HARDENING UPDATE:
+   - Targets now ONLY change to a new random spawn AFTER the current sprite is offscreen.
+   - On kill, target enters an EXITING state and continues moving until it leaves the screen.
 */
 
 (() => {
@@ -22,36 +26,36 @@
   // IMPORTANT: ROOT-ABSOLUTE PATHS (leading slash)
   const ASSETS = {
     squirrel: {
-      left:  "/assets/targets/squirrel-left-facing.webp",
+      left: "/assets/targets/squirrel-left-facing.webp",
       right: "/assets/targets/squirrel-right-facing.webp",
     },
     rabbit: {
-      left:  "/assets/targets/rabbit-left-facing.webp",
+      left: "/assets/targets/rabbit-left-facing.webp",
       right: "/assets/targets/rabbit-right-facing.webp",
     },
     deer: {
-      left:  "/assets/targets/deer-left-facing.webp",
+      left: "/assets/targets/deer-left-facing.webp",
       right: "/assets/targets/deer-right-facing.webp",
     },
     bear: {
-      left:   "/assets/targets/bear-left-facing.webp",
-      right:  "/assets/targets/bear-right-facing.webp",
+      left: "/assets/targets/bear-left-facing.webp",
+      right: "/assets/targets/bear-right-facing.webp",
       attack: "/assets/targets/bear-attack-target.webp",
     },
   };
 
   const WEIGHTS = [
     { type: "squirrel", w: 0.45 },
-    { type: "rabbit",   w: 0.35 },
-    { type: "deer",     w: 0.17 },
-    { type: "bear",     w: 0.03 },
+    { type: "rabbit", w: 0.35 },
+    { type: "deer", w: 0.17 },
+    { type: "bear", w: 0.03 },
   ];
 
   const PROFILE = {
     squirrel: { speed: [280, 520], scale: [0.42, 0.55] },
-    rabbit:   { speed: [240, 460], scale: [0.50, 0.65] },
-    deer:     { speed: [200, 380], scale: [0.70, 0.90] },
-    bear:     { speed: [140, 260], scale: [0.90, 1.10] },
+    rabbit: { speed: [240, 460], scale: [0.5, 0.65] },
+    deer: { speed: [200, 380], scale: [0.7, 0.9] },
+    bear: { speed: [140, 260], scale: [0.9, 1.1] },
   };
 
   const CSS = `
@@ -96,7 +100,7 @@
   }
 
   const rand = (a, b) => a + Math.random() * (b - a);
-  const vh = v => (v / 100) * window.innerHeight;
+  const vh = (v) => (v / 100) * window.innerHeight;
 
   function pick_weighted(list) {
     const total = list.reduce((s, i) => s + i.w, 0);
@@ -120,8 +124,11 @@
   }
 
   function rect_contains(rect, x, y) {
-    return x >= rect.left && x <= rect.right &&
-           y >= rect.top  && y <= rect.bottom;
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  }
+
+  function is_offscreen_with_margin(x, margin = 300) {
+    return x < -margin || x > window.innerWidth + margin;
   }
 
   let layer, sprite, debugEl;
@@ -205,6 +212,8 @@
       attack: false,
       deadline: 0,
       scale,
+      exiting: false,       // HARDEN: only swap targets after offscreen
+      exit_reason: "",      // why we’re exiting (killed, etc.)
     };
 
     sprite.src = sprite_src(type, dir, false);
@@ -214,7 +223,8 @@
     emit("vc:target_spawn", { type, dir });
   }
 
-  function despawn(reason) {
+  // HARD DESPAWN: clears immediately + schedules next spawn (used only when already offscreen or forced)
+  function hard_despawn(reason) {
     if (!current) return;
     emit("vc:target_despawn", { type: current.type, reason });
     current = null;
@@ -222,25 +232,49 @@
     schedule_spawn();
   }
 
+  // SOFT DESPAWN: do NOT swap targets until offscreen
+  function soft_exit(reason) {
+    if (!current) return;
+
+    // Mark exiting; keep moving until offscreen, then hard_despawn.
+    current.exiting = true;
+    current.exit_reason = reason;
+
+    // Slightly fade so it reads as “resolved” but still physically exits the screen.
+    sprite.style.opacity = "0.35";
+  }
+
   function update(dt) {
+    // If no current target, we may spawn a new one (ONLY when nothing exists).
     if (!current) {
       if (Date.now() >= next_spawn) spawn();
       return;
     }
 
+    // Move target every frame (alive OR exiting)
+    pos.x += vx * dt;
+    sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${current.scale})`;
+
+    // If exiting, only finalize despawn once it is fully offscreen
+    if (current.exiting) {
+      if (is_offscreen_with_margin(pos.x, 300)) {
+        hard_despawn(`offscreen_after_${current.exit_reason || "exit"}`);
+      }
+      return;
+    }
+
+    // Bear attack window only matters while ALIVE (not exiting)
     if (current.type === "bear" && current.attack) {
       if (Date.now() >= current.deadline) {
         emit("vc:player_injured", { source: "bear" });
-        despawn("bear_attack_timeout");
+        hard_despawn("bear_attack_timeout");
         return;
       }
     }
 
-    pos.x += vx * dt;
-    sprite.style.transform = `translate3d(${pos.x}px,${pos.y}px,0) scale(${current.scale})`;
-
-    if (pos.x < -300 || pos.x > window.innerWidth + 300) {
-      despawn("offscreen");
+    // Normal offscreen cleanup (alive)
+    if (is_offscreen_with_margin(pos.x, 300)) {
+      hard_despawn("offscreen");
     }
   }
 
@@ -254,7 +288,8 @@
   }
 
   function shoot() {
-    if (!current) {
+    // If no target or we’re exiting, don’t allow target changes / interactions.
+    if (!current || current.exiting) {
       emit("vc:shot_miss", {});
       return;
     }
@@ -275,19 +310,25 @@
       if (current.hp === 1 && !current.attack) {
         current.attack = true;
         current.deadline = Date.now() + CONFIG.bear_attack_window_ms;
+
+        // Bear is still alive, so swap to attack sprite is allowed here.
         sprite.src = sprite_src("bear", current.dir, true);
         emit("vc:bear_attack_state", {});
         return;
       }
       if (current.hp <= 0) {
         emit("vc:target_killed", { type: "bear" });
-        despawn("killed");
+
+        // HARDEN: do not despawn immediately -> exit until offscreen
+        soft_exit("killed");
       }
       return;
     }
 
     emit("vc:target_killed", { type: current.type });
-    despawn("killed");
+
+    // HARDEN: do not despawn immediately -> exit until offscreen
+    soft_exit("killed");
   }
 
   window.vc_targets = {
