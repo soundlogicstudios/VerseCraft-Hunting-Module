@@ -72,6 +72,12 @@ body{
   -webkit-user-drag:none;
 }
 
+/* === Nudge ONLY left-facing deer and squirrel up for track alignment === */
+.target-sprite[data-animal="deer"][data-facing="left"],
+.target-sprite[data-animal="squirrel"][data-facing="left"] {
+  margin-top: -4px;
+}
+
 .layer-ui{
   position: absolute;
   inset: 0;
@@ -151,12 +157,12 @@ body{
   background: none;
 }
 
-/* === iOS/PWA ONLY: Raise Fire Button Further === */
+/* === iOS/PWA ONLY: Raise Fire Button Further (now 50px) === */
 @supports(padding-bottom: env(safe-area-inset-bottom)) {
   @media screen and (max-width: 900px) and (orientation: portrait) {
     .layer-controls {
-      /* Only on iOS, only when needed, 44px + home bar */
-      padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px)) !important;
+      /* Only on iOS, only when needed, 50px + home bar */
+      padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px)) !important;
     }
   }
 }
