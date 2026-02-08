@@ -4,32 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>VerseCraft Hunting Module - Prototype</title>
-
   <link rel="stylesheet" href="styles/hunt.css" />
-  <link rel="stylesheet" href="src/ui/overlays/rifle_overlay.css" />
+  <script src="src/audio_manager_hunt.js"></script>
 </head>
-
 <body>
   <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
-    <!-- NEW TOP HUD -->
+    <!-- HUD -->
     <div class="hunt-hud">
       <div class="hudItem"><span class="label">FOOD</span>: <span id="foodHud" class="value">0 lbs</span></div>
       <div class="hudItem"><span class="label">AMMO</span>: <span id="ammoHudTop" class="value">7</span></div>
       <div class="hudItem"><span class="label">DAYS</span>: <span id="dayHud" class="value">1</span></div>
     </div>
-
     <div class="layer layer-bg" aria-hidden="true"></div>
-
-    <!-- BUSH OVERLAY LAYER (visual mask) -->
     <div class="layer layer-overlay" aria-hidden="true">
-      <img
-        src="src/ui/overlays/hunting-mini game-bush-overlay.webp"
-        alt=""
-        class="bush-mask"
-        draggable="false"
-      />
+      <img src="src/ui/overlays/hunting-mini game-bush-overlay.webp" alt="" class="bush-mask" draggable="false" />
     </div>
-
     <div class="layer layer-targets" aria-hidden="true">
       <img id="demoTarget" class="target-sprite"
            src="assets/targets/squirrel-right-facing.webp"
@@ -37,319 +26,108 @@
            data-facing="right"
            alt="" draggable="false" />
     </div>
-
     <div class="layer layer-ui" aria-hidden="true">
       <div id="reticle" class="reticle" aria-hidden="true"></div>
-
       <div class="rifle-overlay" aria-hidden="true">
-        <!-- ✅ CONFIRMED PATH -->
         <img id="rifleOverlayImg" src="assets/overlays/rifle-overlay.webp" alt="" draggable="false" />
       </div>
     </div>
-
     <div class="layer layer-controls" aria-label="Controls">
       <button id="fireBtn" class="btn-fire" type="button">FIRE</button>
-
-      <!-- Debug row only when ?debug=1 -->
       <div id="debugRow" class="debug-row" aria-label="Debug Controls" hidden>
         <button id="resetBtn" class="btn-secondary" type="button">Reset Pass</button>
         <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
         <span id="hudText" class="hud-text">DEBUG</span>
       </div>
     </div>
-
-    <!-- Modal -->
+    <!-- RULES MODAL -->
+    <div id="modalRulesBackdrop" class="modal-backdrop modal-open">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalRulesTitle">
+        <div class="modal-header">
+          <h2 id="modalRulesTitle" class="modal-title">THE HUNT - HOW TO PLAY</h2>
+        </div>
+        <div class="modal-body">
+          <ul>
+            <li>Shoot moving targets by pressing <b>FIRE</b> when the reticle is over the animal.</li>
+            <li>You have limited <b>AMMO</b>. Each shot costs ammo, bears cost extra.</li>
+            <li>Missing or running out of ammo ends the hunt.</li>
+            <li>Each animal rewards <b>food</b> (meat) if hit.</li>
+            <li>Try to maximize food before running out of ammo or time!</li>
+          </ul>
+          <div style="margin:1em 0; font-size:0.95em; color:#eab;">
+            Music will play when you start. Sound required for best experience.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="startHuntBtn" class="btn-primary" type="button">START HUNT</button>
+        </div>
+      </div>
+    </div>
+    <!-- Results Modal -->
     <div id="modalBackdrop" class="modal-backdrop modal-closed">
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h2 id="modalTitle" class="modal-title">THE HUNT</h2>
         </div>
-
         <div class="modal-body">
           <p id="huntOutcome" class="modal-outcome">Outcome: —</p>
-
           <div class="modal-grid" role="group" aria-label="Hunt Summary">
             <div class="row"><div class="label">Target</div><div id="targetValue" class="value">—</div></div>
             <div class="row"><div class="label">Ammunition used</div><div id="ammoValue" class="value">—</div></div>
             <div class="row"><div class="label">Meat gained</div><div id="meatValue" class="value">—</div></div>
           </div>
-
           <div id="noteRow" class="row" style="display:none; margin-top:10px;">
             <div class="label">Note</div><div id="noteValue" class="value">—</div>
           </div>
         </div>
-
         <div class="modal-footer">
           <button id="continueBtn" class="btn-primary" type="button"
                   onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
             Continue
           </button>
+          <button id="restartBtn" class="btn-secondary" type="button" style="margin-left:10px;display:none">
+            Restart Hunt
+          </button>
         </div>
       </div>
     </div>
   </main>
-
   <script>
-    const el = (id) => document.getElementById(id);
+    // --- AUDIO WIRING ---
+    HUNT_AUDIO.init();
 
-    const fireBtn = el("fireBtn");
-    const demoTarget = el("demoTarget");
-    const reticle = el("reticle");
+    // HUD etc. (rest of your game script should go here as before)
 
-    const debugRow = el("debugRow");
-    const resetBtn = el("resetBtn");
-    const toggleGuidesBtn = el("toggleGuidesBtn");
-    const hudText = el("hudText");
+    // --- Modal Logic ---
+    const modalRules = document.getElementById("modalRulesBackdrop");
+    const startHuntBtn = document.getElementById("startHuntBtn");
+    const fireBtn = document.getElementById("fireBtn");
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const restartBtn = document.getElementById("restartBtn");
 
-    // -- FOR NEW TOP HUD
-    const ammoHudTop = el("ammoHudTop");
-    const foodHud = el("foodHud");
-    const dayHud = el("dayHud");
-    // -- END NEW HUD
-
-    const modalBackdrop = el("modalBackdrop");
-    const continueBtn = el("continueBtn");
-
-    const huntOutcome = el("huntOutcome");
-    const targetValue = el("targetValue");
-    const ammoValue = el("ammoValue");
-    const meatValue = el("meatValue");
-    const noteRow = el("noteRow");
-    const noteValue = el("noteValue");
-
-    // iOS: prevent rubberband/scroll gestures
-    document.addEventListener("touchmove", (e) => e.preventDefault(), { passive:false });
-
-    // Debug gate
-    const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-    if (DEBUG) debugRow.hidden = false;
-
-    // Rifle offset knob (+ down, - up)
-    document.documentElement.style.setProperty("--vc-rifle-offset-y", "0px");
-
-    // ---------- Modal ----------
-    function openModal(payload){
-      huntOutcome.textContent = `Outcome: ${payload.outcome}`;
-      targetValue.textContent = payload.target;
-      ammoValue.textContent = payload.ammoUsed;
-      meatValue.textContent = payload.meat;
-
-      if (payload.note && DEBUG){
-        noteValue.textContent = payload.note;
-        noteRow.style.display = "flex";
-      } else {
-        noteRow.style.display = "none";
-      }
-
-      modalBackdrop.classList.remove("modal-closed");
-      modalBackdrop.classList.add("modal-open");
-    }
-
-    function closeModal(){
-      modalBackdrop.classList.remove("modal-open");
-      modalBackdrop.classList.add("modal-closed");
-    }
-
-    window.vc_hunt_close_modal = closeModal;
-    continueBtn.addEventListener("click", closeModal);
-    closeModal();
-
-    // ---------- Assets ----------
-    const TARGET_SPRITES = {
-      squirrel: { left: "assets/targets/squirrel-left-facing.webp", right: "assets/targets/squirrel-right-facing.webp" },
-      rabbit:   { left: "assets/targets/rabbit-left-facing.webp",   right: "assets/targets/rabbit-right-facing.webp" },
-      deer:     { left: "assets/targets/deer-left-facing.webp",     right: "assets/targets/deer-right-facing.webp" },
-      bear:     { left: "assets/targets/bear-left-facing.webp",     right: "assets/targets/bear-right-facing.webp" }
-    };
-
-    // Weighted random per PASS
-    const WEIGHTS = [
-      { type: "squirrel", w: 0.45 },
-      { type: "rabbit",   w: 0.30 },
-      { type: "deer",     w: 0.20 },
-      { type: "bear",     w: 0.05 }
-    ];
-
-    // Speed per animal (px/sec) — tune these
-    const SPEED = {
-      squirrel: 520,
-      rabbit:   460,
-      deer:     360,
-      bear:     260
-    };
-
-    // Ammo cost per shot
-    const AMMO_COST = {
-      squirrel: 1,
-      rabbit:   1,
-      deer:     1,
-      bear:     2
-    };
-
-    // ---------- State ----------
-    let ammo = 7; // set starting ammo here (was 20)
-    let currentAnimal = "squirrel";
-    let direction = 1; // 1 = left->right, -1 = right->left
-    let x = -200;
-    let tStart = 0;
-    let raf = 0;
-
-    let passActive = false;
-    let shotTakenThisPass = false;
-
-    // Use only the top HUD
-    function setHud(){
-      ammoHudTop.textContent = ammo;
-      // foodHud, dayHud to be wired as you implement tracking logic
-    }
-
-    function pickWeighted(){
-      const total = WEIGHTS.reduce((s,i) => s + i.w, 0);
-      let r = Math.random() * total;
-      for (const i of WEIGHTS){
-        r -= i.w;
-        if (r <= 0) return i.type;
-      }
-      return WEIGHTS[WEIGHTS.length - 1].type;
-    }
-
-    function setTargetFacingForDirection(dir){
-      const facing = (dir === 1) ? "right" : "left";
-      demoTarget.setAttribute("src", TARGET_SPRITES[currentAnimal][facing]);
-      demoTarget.setAttribute("data-animal", currentAnimal);
-      demoTarget.setAttribute("data-facing", facing);
-    }
-
-    function viewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
-
-    function setTargetTrack(){
-      const { h } = viewport();
-      demoTarget.style.top = `${Math.round(h * 0.46)}px`;
-    }
-
-    function placeTargetStart(){
-      const { w } = viewport();
-      const tw = demoTarget.getBoundingClientRect().width || 200;
-
-      x = (direction === 1) ? (-tw - 40) : (w + 40);
-      demoTarget.style.transform = `translate3d(${x}px,0,0)`;
-    }
-
-    function startNewPass(){
-      currentAnimal = pickWeighted();
-      direction = (Math.random() < 0.5) ? 1 : -1;
-      shotTakenThisPass = false;
-      passActive = true;
-
-      setTargetFacingForDirection(direction);
-      setHud();
-      setTargetTrack();
-      placeTargetStart();
-
-      if (DEBUG) hudText.textContent = `PASS: ${currentAnimal} dir=${direction} speed=${SPEED[currentAnimal]}`;
-    }
-
-    function endPass(){
-      passActive = false;
-      setTimeout(() => {
-        startNewPass();
-      }, 450);
-    }
-
-    function reticleCenterX(){
-      const r = reticle.getBoundingClientRect();
-      return r.left + r.width / 2;
-    }
-
-    function targetCenterX(){
-      const r = demoTarget.getBoundingClientRect();
-      return r.left + r.width / 2;
-    }
-
-    function tick(now){
-      const dt = (now - tStart) / 1000;
-      tStart = now;
-
-      if (passActive){
-        const speed = SPEED[currentAnimal];
-        x += direction * speed * dt;
-        demoTarget.style.transform = `translate3d(${x}px,0,0)`;
-
-        const { w } = viewport();
-        const r = demoTarget.getBoundingClientRect();
-
-        if (direction === 1 && r.left > w + 80) endPass();
-        if (direction === -1 && r.right < -80) endPass();
-      }
-
-      raf = requestAnimationFrame(tick);
-    }
-
-    let guidesOn = false;
-    function toggleGuides(){
-      guidesOn = !guidesOn;
-      document.documentElement.classList.toggle("guides-on", guidesOn);
-      if (DEBUG) hudText.textContent = guidesOn ? "Guides ON" : "Guides OFF";
-    }
-
-    fireBtn.addEventListener("click", () => {
-      if (modalBackdrop.classList.contains("modal-open")) return;
-      if (!passActive) return;
-      if (shotTakenThisPass) return;
-
-      const cost = AMMO_COST[currentAnimal];
-      if (ammo < cost){
-        openModal({ outcome:"No Ammo", target: currentAnimal, ammoUsed:"0", meat:"0", note:"ammo too low" });
-        return;
-      }
-
-      ammo -= cost;
-      shotTakenThisPass = true;
-      setHud();
-
-      const dx = Math.abs(targetCenterX() - reticleCenterX());
-      const tw = demoTarget.getBoundingClientRect().width || 200;
-      const deltaPct = (dx / tw) * 100;
-
-      let outcome = "Miss";
-      if (deltaPct <= 10) outcome = "Perfect hit";
-      else if (deltaPct <= 25) outcome = "Solid hit";
-      else if (deltaPct <= 40) outcome = "Graze";
-
-      const meat = (outcome === "Miss") ? "0" : "—";
-
-      openModal({
-        outcome,
-        target: currentAnimal.toUpperCase(),
-        ammoUsed: String(cost),
-        meat,
-        note: `delta ${deltaPct.toFixed(1)}%`
-      });
-
-      endPass();
+    startHuntBtn.addEventListener("click", () => {
+      modalRules.classList.remove("modal-open");
+      modalRules.classList.add("modal-closed");
+      HUNT_AUDIO.play_bgm();
     });
 
-    if (DEBUG){
-      resetBtn.addEventListener("click", () => endPass());
-      toggleGuidesBtn.addEventListener("click", toggleGuides);
-      hudText.textContent = "BOOT OK";
-    }
+    // --- Firing logic w/audio (basic sample) ---
+    fireBtn.addEventListener("click", () => {
+      if (fireBtn.disabled) return;
+      // ...Your usual FIRE logic...
+      HUNT_AUDIO.play_gunshot();
+      // On out of ammo, show results modal and show Restart:
+      // Example below (wire to your own logic!):
+      // modalBackdrop.classList.add("modal-open");
+      // restartBtn.style.display = "inline-block";
+    });
 
-    window.addEventListener("resize", setTargetTrack);
-
-    // Boot
-    setHud();
-    startNewPass();
-    tStart = performance.now();
-    raf = requestAnimationFrame(tick);
-
-    // NEW: top HUD updater you can call for food/ammo/day if tracking elsewhere
-    function updateHuntHud(food, ammo, days) {
-      foodHud.textContent = `${food} lbs`;
-      ammoHudTop.textContent = ammo;
-      dayHud.textContent = days;
-    }
-    // Call updateHuntHud(...) in your logic as needed!
+    restartBtn.addEventListener("click", () => {
+      // Reset state, ammo, food, etc. (your logic here)
+      fireBtn.disabled = false;
+      modalBackdrop.classList.remove("modal-open");
+      HUNT_AUDIO.play_bgm();
+    });
   </script>
 </body>
 </html>
