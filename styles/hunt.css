@@ -10,6 +10,7 @@
   --panel-border: rgba(245,225,180,0.35);
   --text: rgba(245,235,215,0.95);
   --muted: rgba(245,235,215,0.86);
+  --bush-overlay-offset-y: 0px; /* Negative = move up, Positive = move down */
 }
 
 [hidden]{ display:none !important; }
@@ -49,6 +50,14 @@ body{
   position:absolute;
   inset:0;
 }
+
+.layer-bg{
+  background-image: var(--hunt-bg-url);
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+}
+
 .layer-overlay {
   pointer-events: none;
   z-index: 2;
@@ -69,13 +78,9 @@ body{
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-}
-
-.layer-bg{
-  background-image: var(--hunt-bg-url);
-  background-size:cover;
-  background-position:center center;
-  background-repeat:no-repeat;
+  /* Tuning knob for up/down */
+  transform: translateY(var(--bush-overlay-offset-y, 0px));
+  transition: transform 0.2s cubic-bezier(.45,.03,.51,.95);
 }
 
 .layer-targets{
@@ -91,12 +96,6 @@ body{
   will-change:transform;
   user-select:none;
   -webkit-user-drag:none;
-}
-
-/* === Nudge ONLY left-facing deer and squirrel up for track alignment === */
-.target-sprite[data-animal="deer"][data-facing="left"],
-.target-sprite[data-animal="squirrel"][data-facing="left"] {
-  margin-top: -4px;
 }
 
 .layer-ui{
@@ -172,20 +171,9 @@ body{
   padding:
     16px
     calc(16px + var(--safe-right))
-    16px
+    calc(16px + var(--safe-bottom))
     calc(16px + var(--safe-left));
   gap:12px;
-  background: none;
-}
-
-/* === iOS/PWA ONLY: Raise Fire Button Further (now 50px) === */
-@supports(padding-bottom: env(safe-area-inset-bottom)) {
-  @media screen and (max-width: 900px) and (orientation: portrait) {
-    .layer-controls {
-      /* Only on iOS, only when needed, 50px + home bar */
-      padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px)) !important;
-    }
-  }
 }
 
 .hunt-hud {
@@ -407,16 +395,4 @@ body{
   font-weight:900;
   letter-spacing:0.06em;
   text-transform:uppercase;
-}
-
-/* === Target Track Demo Utility (for your next engine changes) === */
-/* Add a visible guideline for the dev team to anchor target feet for testing. Remove or comment for prod! */
-.hunt-target-track {
-  position: absolute;
-  left: 0;
-  width: 100vw;
-  height: 0;
-  border-bottom: 2px dashed #e0b43b99;
-  pointer-events: none;
-  z-index: 200;
 }
