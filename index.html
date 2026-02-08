@@ -5,27 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>VerseCraft Hunting Module - Prototype</title>
   <link rel="stylesheet" href="styles/hunt.css" />
-  <script src="./assets/audio/audio_manager_hunt.js"></script>
 </head>
 <body>
   <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
-    <!-- HUD -->
     <div class="hunt-hud">
       <div class="hudItem"><span class="label">FOOD</span>: <span id="foodHud" class="value">0 lbs</span></div>
       <div class="hudItem"><span class="label">AMMO</span>: <span id="ammoHudTop" class="value">7</span></div>
       <div class="hudItem"><span class="label">DAYS</span>: <span id="dayHud" class="value">1</span></div>
     </div>
     <div class="layer layer-bg" aria-hidden="true"></div>
-    <div class="layer layer-overlay" aria-hidden="true">
-      <img src="src/ui/overlays/hunting-mini game-bush-overlay.webp" alt="" class="bush-mask" draggable="false" />
-    </div>
-    <div class="layer layer-targets" aria-hidden="true">
-      <img id="demoTarget" class="target-sprite"
-           src="assets/targets/squirrel-right-facing.webp"
-           data-animal="squirrel"
-           data-facing="right"
-           alt="" draggable="false" />
-    </div>
+    <div class="layer layer-targets" aria-hidden="true"></div>
     <div class="layer layer-ui" aria-hidden="true">
       <div id="reticle" class="reticle" aria-hidden="true"></div>
       <div class="rifle-overlay" aria-hidden="true">
@@ -40,94 +29,28 @@
         <span id="hudText" class="hud-text">DEBUG</span>
       </div>
     </div>
-    <!-- RULES MODAL -->
-    <div id="modalRulesBackdrop" class="modal-backdrop modal-open">
-      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalRulesTitle">
-        <div class="modal-header">
-          <h2 id="modalRulesTitle" class="modal-title">THE HUNT - HOW TO PLAY</h2>
-        </div>
-        <div class="modal-body">
-          <ul>
-            <li>Shoot moving targets by pressing <b>FIRE</b> when the reticle is over the animal.</li>
-            <li>You have limited <b>AMMO</b>. Each shot costs ammo, bears cost extra.</li>
-            <li>Missing or running out of ammo ends the hunt.</li>
-            <li>Each animal rewards <b>food</b> (meat) if hit.</li>
-            <li>Try to maximize food before running out of ammo or time!</li>
-          </ul>
-          <div style="margin:1em 0; font-size:0.95em; color:#eab;">
-            Music will play when you start. Sound required for best experience.
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button id="startHuntBtn" class="btn-primary" type="button">START HUNT</button>
-        </div>
-      </div>
-    </div>
-    <!-- Results Modal -->
-    <div id="modalBackdrop" class="modal-backdrop modal-closed">
+    <!-- Modal -->
+    <div id="modalBackdrop" class="modal-backdrop modal-open">
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h2 id="modalTitle" class="modal-title">THE HUNT</h2>
         </div>
         <div class="modal-body">
-          <p id="huntOutcome" class="modal-outcome">Outcome: —</p>
-          <div class="modal-grid" role="group" aria-label="Hunt Summary">
-            <div class="row"><div class="label">Target</div><div id="targetValue" class="value">—</div></div>
-            <div class="row"><div class="label">Ammunition used</div><div id="ammoValue" class="value">—</div></div>
-            <div class="row"><div class="label">Meat gained</div><div id="meatValue" class="value">—</div></div>
-          </div>
-          <div id="noteRow" class="row" style="display:none; margin-top:10px;">
-            <div class="label">Note</div><div id="noteValue" class="value">—</div>
-          </div>
+          <p id="huntRules" class="modal-outcome">
+            Shoot moving targets to collect food.<br/>
+            You have limited ammo.<br/>
+            When you run out of ammo, the hunt ends.<br/>
+            Click "Start Hunt" to begin.
+          </p>
         </div>
         <div class="modal-footer">
-          <button id="continueBtn" class="btn-primary" type="button"
-                  onclick="window.vc_hunt_close_modal && window.vc_hunt_close_modal()">
-            Continue
-          </button>
-          <button id="restartBtn" class="btn-secondary" type="button" style="margin-left:10px;display:none">
-            Restart Hunt
-          </button>
+          <button id="continueBtn" class="btn-primary" type="button">Start Hunt</button>
         </div>
       </div>
     </div>
   </main>
-  <script>
-    // --- AUDIO WIRING ---
-    HUNT_AUDIO.init();
-
-    // HUD etc. (rest of your game script should go here as before)
-
-    // --- Modal Logic ---
-    const modalRules = document.getElementById("modalRulesBackdrop");
-    const startHuntBtn = document.getElementById("startHuntBtn");
-    const fireBtn = document.getElementById("fireBtn");
-    const modalBackdrop = document.getElementById("modalBackdrop");
-    const restartBtn = document.getElementById("restartBtn");
-
-    startHuntBtn.addEventListener("click", () => {
-      modalRules.classList.remove("modal-open");
-      modalRules.classList.add("modal-closed");
-      HUNT_AUDIO.play_bgm();
-    });
-
-    // --- Firing logic w/audio (basic sample) ---
-    fireBtn.addEventListener("click", () => {
-      if (fireBtn.disabled) return;
-      // ...Your usual FIRE logic...
-      HUNT_AUDIO.play_gunshot();
-      // On out of ammo, show results modal and show Restart:
-      // Example below (wire to your own logic!):
-      // modalBackdrop.classList.add("modal-open");
-      // restartBtn.style.display = "inline-block";
-    });
-
-    restartBtn.addEventListener("click", () => {
-      // Reset state, ammo, food, etc. (your logic here)
-      fireBtn.disabled = false;
-      modalBackdrop.classList.remove("modal-open");
-      HUNT_AUDIO.play_bgm();
-    });
-  </script>
+  <script src="assets/audio/audio_manager_hunt.js"></script>
+  <script src="src/overlays/target_runner.js"></script>
+  <script src="hunt_main.js"></script>
 </body>
 </html>
