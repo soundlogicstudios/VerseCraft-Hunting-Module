@@ -370,3 +370,21 @@ body{
   letter-spacing:0.06em;
   text-transform:uppercase;
 }
+
+/* === ADDITIVE PATCH BELOW: iOS/PWA Safe Fire Button === */
+.layer-controls {
+  /* Guarantees Fire button is never eaten by browser chrome or iOS home bar */
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* === Target Track Demo Utility (for your next engine changes) === */
+/* Add a visible guideline for the dev team to anchor target feet for testing. Remove or comment for prod! */
+.hunt-target-track {
+  position: absolute;
+  left: 0;
+  width: 100vw;
+  height: 0;
+  border-bottom: 2px dashed #e0b43b99;
+  pointer-events: none;
+  z-index: 200;
+}
