@@ -23,6 +23,8 @@
     <div class="layer layer-targets" aria-hidden="true">
       <img id="demoTarget" class="target-sprite"
            src="assets/targets/squirrel-right-facing.webp"
+           data-animal="squirrel"
+           data-facing="right"
            alt="" draggable="false" />
     </div>
 
@@ -44,7 +46,6 @@
         <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
         <span id="hudText" class="hud-text">DEBUG</span>
       </div>
-      <!-- MINIMAL HUD REMOVED -->
     </div>
 
     <!-- Modal -->
@@ -95,10 +96,6 @@
     const foodHud = el("foodHud");
     const dayHud = el("dayHud");
     // -- END NEW HUD
-
-    // Old minimal HUD elements removed (no more double display)
-    // const ammoHud = el("ammoHud");
-    // const animalHud = el("animalHud");
 
     const modalBackdrop = el("modalBackdrop");
     const continueBtn = el("continueBtn");
@@ -209,6 +206,8 @@
     function setTargetFacingForDirection(dir){
       const facing = (dir === 1) ? "right" : "left";
       demoTarget.setAttribute("src", TARGET_SPRITES[currentAnimal][facing]);
+      demoTarget.setAttribute("data-animal", currentAnimal);
+      demoTarget.setAttribute("data-facing", facing);
     }
 
     function viewport(){ return { w: window.innerWidth, h: window.innerHeight }; }
