@@ -10,7 +10,7 @@
   --panel-border: rgba(245,225,180,0.35);
   --text: rgba(245,235,215,0.95);
   --muted: rgba(245,235,215,0.86);
-  --bush-overlay-offset-y: 0px; /* Negative = move up, Positive = move down */
+  --bush-overlay-offset-y: -25px; /* Negative = move up, Positive = move down */
 }
 
 [hidden]{ display:none !important; }
