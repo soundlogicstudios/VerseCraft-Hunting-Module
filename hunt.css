@@ -69,12 +69,25 @@ body{
   display: block; width: 100%; max-height: 44vh; height: auto;
   pointer-events: none; user-select: none; -webkit-user-drag: none;
 }
-.layer-controls{
-  z-index: 99 !important; position: absolute; bottom: 0; left: 0; width: 100%;
-  pointer-events:auto; display:flex; flex-direction:column;
-  justify-content:flex-end; align-items:center;
-  padding:16px calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
-  gap:12px;
+.layer-controls {
+  z-index: 120 !important;  /* Ensure above everything */
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  /* Proper safe-area for iOS, with fallback for Android/desktop */
+  padding:
+    16px
+    calc(16px + var(--safe-right, 0px))
+    calc(24px + env(safe-area-inset-bottom, 50px))
+    calc(16px + var(--safe-left, 0px));
+  gap: 12px;
+  background: none; /* No background panel by default, but you can add one if you wish */
 }
 .hunt-hud {
   position: absolute; top: 20px; left: 50%;
