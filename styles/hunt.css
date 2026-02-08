@@ -49,6 +49,27 @@ body{
   position:absolute;
   inset:0;
 }
+.layer-overlay {
+  pointer-events: none;
+  z-index: 2;
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.bush-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 100vw;
+  height: auto;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 
 .layer-bg{
   background-image: var(--hunt-bg-url);
