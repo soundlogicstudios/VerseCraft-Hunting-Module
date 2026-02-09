@@ -1,5 +1,5 @@
 :root{
-  --hunt-bg-url: url("../assets/backgrounds/oregon-trail-hunting-minigame.webp");
+  --hunt-bg-url: url("/VerseCraft-Hunting-Module-main/assets/backgrounds/oregon-trail-hunting-minigame.webp");
   --rifle-overlay-url: url("../assets/overlays/rifle-overlay.webp");
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
