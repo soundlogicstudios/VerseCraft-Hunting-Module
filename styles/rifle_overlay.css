@@ -1,0 +1,23 @@
+.rifle-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%) translateY(var(--vc-rifle-offset-y, 28px));
+  pointer-events: none;
+  z-index: 55;
+  width: min(80vw, 1100px);
+  max-width: 100%;
+  height: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.rifle-overlay img {
+  display: block;
+  width: 100%;
+  max-height: 44vh;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
