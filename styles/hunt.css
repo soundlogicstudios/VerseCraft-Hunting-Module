@@ -1,14 +1,12 @@
 :root{
-  /* ASSETS (relative from /styles/) */
+  /* ✅ RELATIVE path from /styles/ to /assets/ */
   --hunt-bg-url: url("../assets/backgrounds/oregon-trail-hunting-minigame.webp");
 
-  /* SAFE AREAS (iOS) */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
 
-  /* PANEL COLORS */
   --panel-bg: rgba(18,14,10,0.82);
   --panel-border: rgba(245,225,180,0.35);
   --text: rgba(245,235,215,0.95);
@@ -18,7 +16,7 @@
 [hidden]{ display:none !important; }
 *{ box-sizing:border-box; }
 
-/* Kill iOS rubberband scrolling completely */
+/* Kill iOS rubber-band scrolling completely */
 html, body{
   margin:0;
   padding:0;
@@ -38,56 +36,49 @@ body{
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-/* Root */
 .hunt-root{
   position:fixed;
-  left:0;
-  top:0;
+  inset:0;
   width:100vw;
+  height:100svh;
   height:100dvh;
   height:100vh;
   overflow:hidden;
   touch-action:none;
 }
 
-.layer{
-  position:absolute;
-  inset:0;
-}
+.layer{ position:absolute; inset:0; }
+
+/* Explicit stacking so iOS never hides FIRE */
+.layer-bg{ z-index:0; }
+.layer-targets{ z-index:20; pointer-events:none; }
+.layer-ui{ z-index:56; pointer-events:none; }
+.layer-controls{ z-index:120; pointer-events:auto; }
+.modal-backdrop{ z-index:9999; }
 
 /* Background */
 .layer-bg{
-  z-index:0;
   background-image: var(--hunt-bg-url);
-  background-size:cover;
-  background-position:center center;
-  background-repeat:no-repeat;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
 }
 
 /* Targets */
-.layer-targets{
-  z-index:20;
-  pointer-events:none;
-}
+.layer-targets{ overflow:hidden; }
 .target-sprite{
   position:absolute;
   left:0;
   width:min(40vw, 520px);
   height:auto;
-  transform:translate3d(-200px,0,0);
+  transform:translate3d(-240px,0,0);
   will-change:transform;
   user-select:none;
   -webkit-user-drag:none;
+  filter: drop-shadow(0 8px 12px rgba(0,0,0,0.35));
 }
 
-/* UI */
-.layer-ui{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  z-index:56;
-}
-
+/* Reticle */
 .reticle{
   position:absolute;
   left:50%;
@@ -112,38 +103,8 @@ body{
 .reticle::before{ width:3px; height:220px; }
 .reticle::after{ width:220px; height:3px; }
 
-/* Rifle overlay (image element) */
-.rifle-overlay{
-  position:absolute;
-  left:50%;
-  bottom:0;
-  transform:translateX(-50%) translateY(var(--vc-rifle-offset-y, 28px));
-  pointer-events:none;
-  z-index:55;
-  width:min(80vw, 1100px);
-  max-width:100%;
-  height:auto;
-  display:flex;
-  justify-content:center;
-}
-.rifle-overlay img{
-  display:block;
-  width:100%;
-  max-height:44vh;
-  height:auto;
-  pointer-events:none;
-  user-select:none;
-  -webkit-user-drag:none;
-}
-
 /* Controls */
 .layer-controls{
-  z-index:120;
-  position:absolute;
-  bottom:0;
-  left:0;
-  width:100%;
-  pointer-events:auto;
   display:flex;
   flex-direction:column;
   justify-content:flex-end;
@@ -151,7 +112,7 @@ body{
   padding:
     16px
     calc(16px + var(--safe-right))
-    calc(24px + var(--safe-bottom))
+    calc(28px + var(--safe-bottom))
     calc(16px + var(--safe-left));
   gap:12px;
 }
@@ -161,8 +122,8 @@ body{
   height:64px;
   border-radius:14px;
   border:1px solid rgba(245,225,180,0.55);
-  background:rgba(160,40,30,0.9);
-  color:rgba(255,255,255,0.95);
+  background:rgba(160,40,30,0.92);
+  color:rgba(255,255,255,0.98);
   font-size:20px;
   font-weight:900;
   letter-spacing:0.08em;
@@ -196,29 +157,112 @@ body{
   color:rgba(245,235,215,0.95);
 }
 
-/* HUD (allow back button clicks, but not the text) */
+/* HUD / NAV */
 .hunt-hud{
   position:absolute;
-  top:20px;
-  left:50%;
-  transform:translateX(-50%);
+  top: calc(10px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
   display:flex;
-  gap:18px;
+  gap:16px;
   align-items:center;
-  background:rgba(12,10,8,0.68);
+  background:rgba(12,10,8,0.70);
   border-radius:16px;
-  padding:10px 18px;
-  z-index:100;
-  box-shadow:0 2px 12px rgba(0,0,0,0.22);
+  padding:10px 14px;
+  z-index:200;
+  box-shadow:0 6px 18px rgba(0,0,0,0.25);
   pointer-events:auto;
 }
+
 .hudItem{
   pointer-events:none;
   color:#fffbe6;
   font-weight:900;
-  font-size:1.05em;
+  font-size:14px;
   letter-spacing:0.08em;
+  white-space:nowrap;
 }
+
 .hudItem .label{
   color:#e9e3ce;
-  margin-right:3px;
+  margin-right:6px;
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+}
+
+.nav-btn{
+  pointer-events:auto;
+  height:38px;
+  padding:0 12px;
+  border-radius:12px;
+  border:1px solid rgba(245,225,180,0.45);
+  background:rgba(30,24,18,0.78);
+  color:rgba(245,235,215,0.98);
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.nav-btn:active{ transform:translateY(1px); }
+
+/* Modal */
+.modal-backdrop{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:
+    calc(20px + var(--safe-top))
+    calc(16px + var(--safe-right))
+    calc(20px + var(--safe-bottom))
+    calc(16px + var(--safe-left));
+  background:rgba(0,0,0,0.72);
+  backdrop-filter:blur(2px);
+}
+.modal-backdrop.modal-closed{ opacity:0; pointer-events:none; }
+.modal-backdrop.modal-open{ opacity:1; pointer-events:auto; }
+
+.modal-panel{
+  width:min(720px,94vw);
+  border-radius:18px;
+  border:1px solid var(--panel-border);
+  background:var(--panel-bg);
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  overflow:hidden;
+}
+.modal-header{
+  padding:18px 18px 8px;
+  border-bottom:1px solid rgba(245,225,180,0.18);
+}
+.modal-title{
+  margin:0;
+  font-size:18px;
+  letter-spacing:0.1em;
+}
+.modal-body{ padding:14px 18px 8px; }
+.modal-outcome{ margin:0 0 14px; font-weight:900; }
+
+.modal-footer{
+  padding:12px 18px 18px;
+  display:flex;
+  justify-content:center;
+}
+
+.btn-primary{
+  width:min(420px,92vw);
+  height:54px;
+  border-radius:14px;
+  border:1px solid rgba(245,225,180,0.55);
+  background:rgba(40,120,70,0.92);
+  color:rgba(255,255,255,0.98);
+  font-size:16px;
+  font-weight:900;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+}
+
+/* Optional guide overlay (debug) */
+.guides-on .reticle{
+  border-color: rgba(255,255,255,0.55);
+}
