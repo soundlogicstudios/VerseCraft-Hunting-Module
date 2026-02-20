@@ -222,3 +222,51 @@ body{
 .btn-primary:active{
   transform:translateY(1px);
 }
+
+/* ================= FIRE BUTTON (Phase 1 Fix) =================
+   Purpose: style + place the existing #fireBtn.btn-fire so it is
+   not the tiny default Safari button in the top-left.
+   This does NOT change any HUD logic, ammo logic, scoring, or audio wiring.
+*/
+.btn-fire{
+  position:absolute;
+  right: calc(22px + var(--safe-right));
+  bottom: calc(22px + var(--safe-bottom));
+
+  width: clamp(132px, 22vw, 240px);
+  height: clamp(64px, 10vw, 96px);
+
+  border-radius: 18px;
+  border: 1px solid rgba(245,225,180,0.70);
+  background: rgba(165, 40, 40, 0.92);
+  color: rgba(255,255,255,0.98);
+
+  font-weight: 900;
+  font-size: clamp(18px, 2.8vw, 26px);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+
+  box-shadow:
+    0 12px 26px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.22);
+
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color: transparent;
+
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.btn-fire:active{
+  transform: translateY(1px);
+}
+
+.btn-fire:focus{
+  outline: none;
+}
+
+.btn-fire:focus-visible{
+  outline: 2px solid rgba(245,225,180,0.65);
+  outline-offset: 3px;
+}
