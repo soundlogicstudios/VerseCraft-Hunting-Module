@@ -24,7 +24,6 @@
   const ammoValue = document.getElementById("ammoValue");
   const noteValue = document.getElementById("noteValue");
 
-  // --------- Display names (no lowercase in UI)
   const DISPLAY = {
     squirrel: "Squirrel",
     rabbit: "Rabbit",
@@ -32,18 +31,16 @@
     bear: "Bear",
   };
 
-  // --------- Session state
   const STARTING_AMMO = 7;
 
   let ammo = STARTING_AMMO;
   let food = 0;
   let days = 1;
 
-  let huntStarted = false;     // set true after Start Hunt
-  let gameActive = false;      // false when modal is open
-  let pendingEnd = false;      // if true, Continue closes to end screen or exits
+  let huntStarted = false;
+  let gameActive = false;
+  let pendingEnd = false;
 
-  // Stats
   let shotsFired = 0;
   let resultCounts = { perfect: 0, good: 0, graze: 0, miss: 0 };
   let meatTotal = 0;
@@ -104,15 +101,21 @@
     gameActive = true;
   }
 
-  // --------- Modal screens
+  // ---------- Modal screens
   function showRulesModal(){
     pendingEnd = false;
 
     huntOutcome.textContent = "How To Play";
-    targetValue.textContent = "Aim";
-    meatValue.textContent = "Earn Meat";
-    ammoValue.textContent = "Spend Ammo";
-    noteValue.textContent = "Shoot as the target crosses the reticle. Closer to center = better hit.";
+    targetValue.textContent = "Aim at the reticle";
+    meatValue.textContent = "Earn meat on hits";
+
+    // ✅ Ammunition used row stays, but for Rules we show a friendly dash
+    ammoValue.textContent = "—";
+
+    noteValue.textContent =
+      "Press FIRE as the target crosses the reticle.\n" +
+      "Closer to the center = better hit.\n" +
+      "Ammo is only spent when you press FIRE.";
 
     continueBtn.textContent = huntStarted ? "Resume Hunt" : "Start Hunt";
     continueBtn.style.display = "";
@@ -121,14 +124,16 @@
   }
 
   function showShotModal(res){
-    // res: { animal, outcome, deltaPct, meat }
     const animalKey = String(res.animal || "").toLowerCase();
     const animalName = DISPLAY[animalKey] || "Target";
 
-    huntOutcome.textContent = `Outcome: ${res.outcome}`;
+    huntOutcome.textContent = res.outcome ? `Outcome: ${res.outcome}` : "Outcome: —";
     targetValue.textContent = animalName;
     meatValue.textContent = `${Number(res.meat || 0)} lbs`;
+
+    // ✅ Ammunition used stays on shot modal
     ammoValue.textContent = "1";
+
     noteValue.textContent = DEBUG ? `delta ${Number(res.deltaPct || 0).toFixed(1)}%` : " ";
 
     continueBtn.textContent = (ammo <= 0) ? "View Results" : "Continue";
@@ -137,15 +142,33 @@
     modalOpen();
   }
 
+  function pct(n, d){
+    if (!d) return "0%";
+    const v = Math.round((n / d) * 100);
+    return `${v}%`;
+  }
+
   function showEndResultsModal(reasonText){
     pendingEnd = true;
+
+    const pPerfect = pct(resultCounts.perfect, shotsFired);
+    const pGood    = pct(resultCounts.good, shotsFired);
+    const pGraze   = pct(resultCounts.graze, shotsFired);
+    const pMiss    = pct(resultCounts.miss, shotsFired);
 
     huntOutcome.textContent = "Hunt Results";
     targetValue.textContent = `Shots fired: ${shotsFired}/${STARTING_AMMO}`;
     meatValue.textContent = `${meatTotal} lbs`;
-    ammoValue.textContent = `Ammo left: ${ammo}`;
+
+    // ✅ Ammunition used stays on summary and shows X/7
+    ammoValue.textContent = `${shotsFired} / ${STARTING_AMMO}`;
+
     noteValue.textContent =
-      `${reasonText}\nPerfect: ${resultCounts.perfect}  Good: ${resultCounts.good}  Graze: ${resultCounts.graze}  Miss: ${resultCounts.miss}`;
+      `${reasonText}\n` +
+      `Perfect: ${pPerfect} (${resultCounts.perfect})\n` +
+      `Good: ${pGood} (${resultCounts.good})\n` +
+      `Graze: ${pGraze} (${resultCounts.graze})\n` +
+      `Miss: ${pMiss} (${resultCounts.miss})`;
 
     continueBtn.textContent = "Exit";
     continueBtn.style.display = "";
@@ -154,7 +177,6 @@
   }
 
   function hardEndAndExit(){
-    // stop everything and leave
     stopTargets();
     stopBGM();
     const ret = qs.get("return");
@@ -163,28 +185,23 @@
     location.href = "/";
   }
 
-  // --------- Continue button logic
   function onContinue(){
-    // If we’re on end-results modal, exit.
     if (pendingEnd){
       hardEndAndExit();
       return;
     }
 
-    // First time start: unlock audio and start targets
     if (!huntStarted){
       huntStarted = true;
-      playBGM();      // iOS needs this on user gesture
+      playBGM();      // iOS unlock
       startTargets();
     }
 
-    // Close modal and spawn next target
     modalClose();
     nextTarget();
     updateHud();
   }
 
-  // --------- Debug guides
   let guidesOn = false;
   function toggleGuides(){
     guidesOn = !guidesOn;
@@ -192,33 +209,26 @@
     setDebug(guidesOn ? "Guides ON" : "Guides OFF");
   }
 
-  // --------- Back behavior
   function onBack(){
     if (!huntStarted){
-      // never started — just exit clean
       hardEndAndExit();
       return;
     }
-    // started — show results before exiting
     showEndResultsModal("You ended the hunt early.");
   }
 
-  // --------- FIRE behavior
   function onFire(){
-    if (!huntStarted) {
-      // if they tap FIRE before start, show rules
+    if (!huntStarted){
       showRulesModal();
       return;
     }
     if (!gameActive) return;
 
     if (ammo <= 0){
-      // End results appears when trying to fire at 0 ammo (locked requirement)
       showEndResultsModal("You are out of ammo.");
       return;
     }
 
-    // Spend ammo only on FIRE (locked)
     ammo -= 1;
     shotsFired += 1;
     updateHud();
@@ -227,7 +237,6 @@
     window.dispatchEvent(new CustomEvent("vc:shoot"));
   }
 
-  // --------- Shot result event from runner
   function onShotResult(e){
     const res = e.detail || {};
     const meat = Number(res.meat || 0);
@@ -246,21 +255,11 @@
     if (DEBUG) setDebug(`${outcome} +${meat} (${res.animal})`);
 
     showShotModal(res);
-
-    // If that shot used the last ammo, the next Continue becomes View Results,
-    // and then they can Exit from the end screen by tapping FIRE at 0 or Continue->Exit.
-    if (ammo <= 0) {
-      // On next Continue from shot modal, show end results instead of resuming.
-      // We do it by swapping the Continue handler temporarily via pendingEnd on next click.
-      // But simplest: after they dismiss the last shot modal, if they try to fire again,
-      // we show end results (already locked). So leave as-is.
-    }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     if (debugRow) debugRow.hidden = !DEBUG;
 
-    // Start: show rules modal FIRST (locked)
     showRulesModal();
     updateHud();
 
