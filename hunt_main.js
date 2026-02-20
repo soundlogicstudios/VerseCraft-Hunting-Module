@@ -18,7 +18,7 @@
   const toggleGuidesBtn = document.getElementById("toggleGuidesBtn");
   const hudText = document.getElementById("hudText");
 
-  const huntOutcome = document.getElementById("huntOutcome");
+  const huntOutcome = document.getElementById("huntOutcome"); // headline line
   const targetValue = document.getElementById("targetValue");
   const meatValue = document.getElementById("meatValue");
   const ammoValue = document.getElementById("ammoValue");
@@ -101,21 +101,33 @@
     gameActive = true;
   }
 
-  // ---------- Modal screens
+  function ammoRowEl(){
+    // safest: ammoValue is inside .row in your modal grid
+    return ammoValue ? ammoValue.closest(".row") : null;
+  }
+
+  function setHeadlineCentered(on){
+    if (!huntOutcome) return;
+    huntOutcome.classList.toggle("center-headline", !!on);
+  }
+
   function showRulesModal(){
     pendingEnd = false;
 
-    huntOutcome.textContent = "How To Play";
+    // Center only HOW TO PLAY line
+    setHeadlineCentered(true);
+    huntOutcome.textContent = "HOW TO PLAY";
+
     targetValue.textContent = "Aim at the reticle";
     meatValue.textContent = "Earn meat on hits";
-
-    // ✅ Ammunition used row stays, but for Rules we show a friendly dash
-    ammoValue.textContent = "—";
-
     noteValue.textContent =
-      "Press FIRE as the target crosses the reticle.\n" +
-      "Closer to the center = better hit.\n" +
+      "Press FIRE as the target crosses the reticle.\n\n" +
+      "Closer to the center = better hit.\n\n" +
       "Ammo is only spent when you press FIRE.";
+
+    // Hide ammo row for rules only
+    const ar = ammoRowEl();
+    if (ar) ar.style.display = "none";
 
     continueBtn.textContent = huntStarted ? "Resume Hunt" : "Start Hunt";
     continueBtn.style.display = "";
@@ -124,6 +136,9 @@
   }
 
   function showShotModal(res){
+    // Shot modal headline not centered (you only wanted How To Play centered)
+    setHeadlineCentered(false);
+
     const animalKey = String(res.animal || "").toLowerCase();
     const animalName = DISPLAY[animalKey] || "Target";
 
@@ -131,7 +146,9 @@
     targetValue.textContent = animalName;
     meatValue.textContent = `${Number(res.meat || 0)} lbs`;
 
-    // ✅ Ammunition used stays on shot modal
+    // Ammo row visible + used = 1
+    const ar = ammoRowEl();
+    if (ar) ar.style.display = "flex";
     ammoValue.textContent = "1";
 
     noteValue.textContent = DEBUG ? `delta ${Number(res.deltaPct || 0).toFixed(1)}%` : " ";
@@ -151,17 +168,21 @@
   function showEndResultsModal(reasonText){
     pendingEnd = true;
 
+    setHeadlineCentered(false);
+    huntOutcome.textContent = "Hunt Results";
+
+    targetValue.textContent = `Shots fired: ${shotsFired}/${STARTING_AMMO}`;
+    meatValue.textContent = `${meatTotal} lbs`;
+
+    // Ammo row visible + X/7
+    const ar = ammoRowEl();
+    if (ar) ar.style.display = "flex";
+    ammoValue.textContent = `${shotsFired} / ${STARTING_AMMO}`;
+
     const pPerfect = pct(resultCounts.perfect, shotsFired);
     const pGood    = pct(resultCounts.good, shotsFired);
     const pGraze   = pct(resultCounts.graze, shotsFired);
     const pMiss    = pct(resultCounts.miss, shotsFired);
-
-    huntOutcome.textContent = "Hunt Results";
-    targetValue.textContent = `Shots fired: ${shotsFired}/${STARTING_AMMO}`;
-    meatValue.textContent = `${meatTotal} lbs`;
-
-    // ✅ Ammunition used stays on summary and shows X/7
-    ammoValue.textContent = `${shotsFired} / ${STARTING_AMMO}`;
 
     noteValue.textContent =
       `${reasonText}\n` +
