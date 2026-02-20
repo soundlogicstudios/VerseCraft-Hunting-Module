@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>VerseCraft Hunting Module - Prototype</title>
 
-  <link rel="stylesheet" href="styles/hunt.css" />
-  <link rel="stylesheet" href="styles/rifle_overlay.css" />
+  <!-- Cache-bust: bump this value any time Pages serves stale assets -->
+  <link rel="stylesheet" href="styles/hunt.css?v=20260219_3" />
+  <link rel="stylesheet" href="styles/rifle_overlay.css?v=20260219_3" />
 </head>
 
 <body>
@@ -69,7 +70,7 @@
   </main>
 
   <!-- IMPORTANT: runner must load BEFORE hunt_main -->
-  <script src="target_runner.js"></script>
-  <script src="hunt_main.js"></script>
+  <script src="target_runner.js?v=20260219_3"></script>
+  <script src="hunt_main.js?v=20260219_3"></script>
 </body>
 </html>
