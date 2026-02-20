@@ -4,51 +4,73 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>VerseCraft Hunting Module - Prototype</title>
+
   <link rel="stylesheet" href="styles/hunt.css" />
+  <link rel="stylesheet" href="styles/rifle_overlay.css" />
 </head>
+
 <body>
   <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
-    <div class="hunt-hud">
+
+    <!-- Top HUD + Back -->
+    <div class="hunt-hud" aria-label="HUD">
+      <button id="backBtn" class="nav-btn" type="button" aria-label="Back">BACK</button>
+
       <div class="hudItem"><span class="label">FOOD</span>: <span id="foodHud" class="value">0 lbs</span></div>
       <div class="hudItem"><span class="label">AMMO</span>: <span id="ammoHudTop" class="value">7</span></div>
       <div class="hudItem"><span class="label">DAYS</span>: <span id="dayHud" class="value">1</span></div>
     </div>
+
     <div class="layer layer-bg" aria-hidden="true"></div>
+
+    <!-- Target runner mounts here -->
     <div class="layer layer-targets" aria-hidden="true"></div>
+
     <div class="layer layer-ui" aria-hidden="true">
       <div id="reticle" class="reticle" aria-hidden="true"></div>
+
       <div class="rifle-overlay" aria-hidden="true">
         <img id="rifleOverlayImg" src="assets/overlays/rifle-overlay.webp" alt="" draggable="false" />
       </div>
     </div>
+
     <div class="layer layer-controls" aria-label="Controls">
       <button id="fireBtn" class="btn-fire" type="button">FIRE</button>
+
+      <!-- Hidden unless ?debug=1 -->
       <div id="debugRow" class="debug-row" aria-label="Debug Controls" hidden>
         <button id="resetBtn" class="btn-secondary" type="button">Reset Pass</button>
         <button id="toggleGuidesBtn" class="btn-secondary" type="button">Toggle Guides</button>
         <span id="hudText" class="hud-text">DEBUG</span>
       </div>
     </div>
+
     <!-- Modal -->
     <div id="modalBackdrop" class="modal-backdrop modal-open">
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h2 id="modalTitle" class="modal-title">THE HUNT</h2>
         </div>
+
         <div class="modal-body">
           <p id="huntRules" class="modal-outcome">
             Shoot moving targets to collect food.<br/>
             You have limited ammo.<br/>
-            When you run out of ammo, the hunt ends.<br/>
+            Ammo is only spent when you press FIRE.<br/>
             Click "Start Hunt" to begin.
           </p>
         </div>
+
         <div class="modal-footer">
           <button id="continueBtn" class="btn-primary" type="button">Start Hunt</button>
         </div>
       </div>
     </div>
+
   </main>
+
+  <!-- CRITICAL FIX: target runner MUST load before hunt_main -->
+  <script src="target_runner.js"></script>
   <script src="hunt_main.js"></script>
 </body>
 </html>
