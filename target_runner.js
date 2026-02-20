@@ -13,21 +13,8 @@
     bear:     { left: "assets/targets/bear-left-facing.webp",     right: "assets/targets/bear-right-facing.webp" }
   };
 
-  // Meat values (base). Tune later if you want.
-  const MEAT_BASE = {
-    squirrel: 8,
-    rabbit:   18,
-    deer:     65,
-    bear:     140
-  };
-
-  // Quality multipliers
-  const MEAT_MULT = {
-    "Perfect hit": 1.00,
-    "Good hit":    0.75,
-    "Graze":       0.40,
-    "Miss":        0.00
-  };
+  const MEAT_BASE = { squirrel: 8, rabbit: 18, deer: 65, bear: 140 };
+  const MEAT_MULT = { "Perfect hit": 1.00, "Good hit": 0.75, "Graze": 0.40, "Miss": 0.00 };
 
   const WEIGHTS = [
     { type: "squirrel", w: 0.45 },
@@ -36,16 +23,10 @@
     { type: "bear",     w: 0.05 }
   ];
 
-  const SPEED = {
-    squirrel: 520,
-    rabbit:   460,
-    deer:     360,
-    bear:     260
-  };
-
+  const SPEED = { squirrel: 520, rabbit: 460, deer: 360, bear: 260 };
   const TRACK_Y_VH = 52;
 
-  // Ring thresholds (percent of target width from center)
+  // Ring thresholds (% of target width from center)
   const THRESH = { perfect: 10, good: 25, graze: 40 };
 
   let img = null;
@@ -53,7 +34,7 @@
   let running = false;
 
   let direction = 1;
-  let x = -280;
+  let x = -320;
   let tPrev = 0;
 
   let currentAnimal = "squirrel";
@@ -93,13 +74,8 @@
     img.src = (direction === 1) ? SPRITES[currentAnimal].right : SPRITES[currentAnimal].left;
 
     const w = viewportW();
-    x = (direction === 1) ? -320 : (w + 320);
+    x = (direction === 1) ? -360 : (w + 360);
     img.style.transform = `translate3d(${x}px,0,0)`;
-  }
-
-  function endPass(){
-    passActive = false;
-    // next pass is triggered by hunt_main closing the modal via vc_targets.reset()
   }
 
   function reticleCenter(){
@@ -147,9 +123,8 @@
       const w = viewportW();
       const rect = img.getBoundingClientRect();
       if ((direction === 1 && rect.left > w + 180) || (direction === -1 && rect.right < -180)) {
-        // offscreen ends pass; next pass will be spawned when modal is closed
-        endPass();
-        startPass(); // keep motion continuous even if player hesitates
+        // keep it moving if user doesn't shoot
+        startPass();
       }
     }
 
@@ -160,9 +135,7 @@
     if (!running || !passActive || !img) return;
     if (shotLocked) return;
     shotLocked = true;
-
     scoreShot();
-    endPass();
   }
 
   window.vc_targets = {
@@ -184,7 +157,6 @@
       img = null;
     },
     reset(){
-      // called when modal closes to spawn next pass
       startPass();
     }
   };
