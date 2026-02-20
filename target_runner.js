@@ -1,88 +1,152 @@
 // target_runner.js
-// Minimal targets runner. Fixes:
-// - Ensures targets appear by being loaded BEFORE hunt_main.js (see index.html)
-// - Uses RELATIVE asset paths (works on GitHub Pages + local)
-// - Adds reset() for debug button
 (() => {
   "use strict";
 
   const layer = document.querySelector(".layer-targets");
-  if (!layer) return;
+  const reticle = document.getElementById("reticle");
+  if (!layer || !reticle) return;
+
+  const SPRITES = {
+    squirrel: { left: "assets/targets/squirrel-left-facing.webp", right: "assets/targets/squirrel-right-facing.webp" },
+    rabbit:   { left: "assets/targets/rabbit-left-facing.webp",   right: "assets/targets/rabbit-right-facing.webp" },
+    deer:     { left: "assets/targets/deer-left-facing.webp",     right: "assets/targets/deer-right-facing.webp" },
+    bear:     { left: "assets/targets/bear-left-facing.webp",     right: "assets/targets/bear-right-facing.webp" }
+  };
+
+  const WEIGHTS = [
+    { type: "squirrel", w: 0.45 },
+    { type: "rabbit",   w: 0.30 },
+    { type: "deer",     w: 0.20 },
+    { type: "bear",     w: 0.05 }
+  ];
+
+  const SPEED = {
+    squirrel: 520,
+    rabbit:   460,
+    deer:     360,
+    bear:     260
+  };
+
+  const TRACK_Y_VH = 52; // tune if needed
 
   let img = null;
   let raf = 0;
+  let running = false;
 
-  let direction = 1; // 1 = left->right, -1 = right->left
-  let x = -240;
+  let direction = 1; // 1 L->R, -1 R->L
+  let x = -260;
   let tPrev = 0;
 
-  // Squirrel only for now (locked). We’ll expand later.
-  const SPRITES = {
-    left:  "assets/targets/squirrel-left-facing.webp",
-    right: "assets/targets/squirrel-right-facing.webp",
-  };
+  let currentAnimal = "squirrel";
+  let passActive = false;
+  let shotTaken = false;
 
-  // speed in px/sec
-  let speedPxPerSec = 520;
+  function viewportW(){ return window.innerWidth || 1024; }
 
-  function removeTarget() {
-    if (img && img.parentNode) img.parentNode.removeChild(img);
-    img = null;
+  function pickWeighted(){
+    const total = WEIGHTS.reduce((s,i) => s + i.w, 0);
+    let r = Math.random() * total;
+    for (const i of WEIGHTS){ r -= i.w; if (r <= 0) return i.type; }
+    return WEIGHTS[WEIGHTS.length - 1].type;
   }
 
-  function spawnTarget() {
-    removeTarget();
-
+  function ensureImg(){
+    if (img) return;
     img = document.createElement("img");
     img.className = "target-sprite";
     img.alt = "";
     img.decoding = "async";
     img.loading = "eager";
-
-    // Track aligned to your reticle feel (tune later)
-    img.style.top = "52vh";
-
-    direction = (Math.random() < 0.5) ? 1 : -1;
-    img.src = (direction === 1) ? SPRITES.right : SPRITES.left;
-
+    img.draggable = false;
+    img.style.top = `${TRACK_Y_VH}vh`;
     layer.appendChild(img);
+  }
 
-    const w = window.innerWidth;
-    x = (direction === 1) ? -260 : (w + 260);
+  function startPass(){
+    ensureImg();
+
+    currentAnimal = pickWeighted();
+    direction = (Math.random() < 0.5) ? 1 : -1;
+
+    shotTaken = false;
+    passActive = true;
+
+    img.src = (direction === 1) ? SPRITES[currentAnimal].right : SPRITES[currentAnimal].left;
+
+    const w = viewportW();
+    x = (direction === 1) ? -280 : (w + 280);
     img.style.transform = `translate3d(${x}px,0,0)`;
   }
 
-  function step(now) {
-    if (!img) { raf = requestAnimationFrame(step); return; }
+  function endPass(){
+    passActive = false;
+    setTimeout(startPass, 380);
+  }
 
+  function reticleCenter(){
+    const r = reticle.getBoundingClientRect();
+    return { x: r.left + r.width/2, y: r.top + r.height/2 };
+  }
+
+  function step(now){
+    if (!running) return;
     if (!tPrev) tPrev = now;
     const dt = Math.min((now - tPrev) / 1000, 0.05);
     tPrev = now;
 
-    x += direction * speedPxPerSec * dt;
-    img.style.transform = `translate3d(${x}px,0,0)`;
+    if (passActive && img){
+      x += direction * SPEED[currentAnimal] * dt;
+      img.style.transform = `translate3d(${x}px,0,0)`;
 
-    const w = window.innerWidth;
-    if ((direction === 1 && x > w + 320) || (direction === -1 && x < -320)) {
-      spawnTarget();
+      const w = viewportW();
+      const rect = img.getBoundingClientRect();
+      if ((direction === 1 && rect.left > w + 160) || (direction === -1 && rect.right < -160)){
+        // No-shot: no ammo spent (handled by hunt_main), just end pass
+        endPass();
+      }
     }
 
     raf = requestAnimationFrame(step);
   }
 
+  function handleShoot(){
+    if (!running || !passActive || !img) return;
+    if (shotTaken) return;
+    shotTaken = true;
+
+    const p = reticleCenter();
+    const r = img.getBoundingClientRect();
+    const hit = (p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom);
+
+    window.dispatchEvent(new CustomEvent(hit ? "vc:hit" : "vc:miss", {
+      detail: { animal: currentAnimal, direction }
+    }));
+
+    // end pass immediately after one shot
+    endPass();
+  }
+
   window.vc_targets = {
-    start() {
-      if (img) return;
+    start(){
+      if (running) return;
+      running = true;
       tPrev = 0;
-      spawnTarget();
+      startPass();
+      window.addEventListener("vc:shoot", handleShoot);
       raf = requestAnimationFrame(step);
     },
-    stop() {
+    stop(){
+      running = false;
       cancelAnimationFrame(raf);
-      removeTarget();
+      window.removeEventListener("vc:shoot", handleShoot);
+      passActive = false;
+      shotTaken = false;
+      if (img && img.parentNode) img.parentNode.removeChild(img);
+      img = null;
     },
-    reset() {
-      spawnTarget();
+    reset(){
+      if (!running) return;
+      startPass();
     }
   };
 })();
