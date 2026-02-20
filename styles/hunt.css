@@ -6,15 +6,16 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
 
-  --panel-bg: rgba(18,14,10,0.82);
+  --panel-bg: rgba(18,14,10,0.88);
   --panel-border: rgba(245,225,180,0.35);
   --text: rgba(245,235,215,0.95);
   --muted: rgba(245,235,215,0.86);
 }
 
-[hidden]{ display:none !important; }
 *{ box-sizing:border-box; }
+[hidden]{ display:none !important; }
 
+/* Kill iOS rubber-band scrolling */
 html, body{
   margin:0;
   padding:0;
@@ -47,9 +48,9 @@ body{
 
 .layer{ position:absolute; inset:0; }
 
-/* stacking */
+/* Explicit stacking so iOS never hides FIRE */
 .layer-bg{ z-index:0; }
-.layer-targets{ z-index:20; pointer-events:none; }
+.layer-targets{ z-index:20; pointer-events:none; overflow:hidden; }
 .layer-ui{ z-index:56; pointer-events:none; }
 .layer-controls{ z-index:120; pointer-events:auto; }
 .modal-backdrop{ z-index:9999; }
@@ -57,13 +58,12 @@ body{
 /* Background */
 .layer-bg{
   background-image: var(--hunt-bg-url);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
 }
 
-/* Targets */
-.layer-targets{ overflow:hidden; }
+/* Target sprite (created by target_runner.js) */
 .target-sprite{
   position:absolute;
   left:0;
@@ -218,6 +218,7 @@ body{
   background:rgba(0,0,0,0.72);
   backdrop-filter:blur(2px);
 }
+
 .modal-backdrop.modal-closed{ opacity:0; pointer-events:none; }
 .modal-backdrop.modal-open{ opacity:1; pointer-events:auto; }
 
@@ -230,40 +231,94 @@ body{
   overflow:hidden;
 }
 
-/* ✅ Center title + body text for rules + results */
+/* Only THE HUNT is centered */
 .modal-header{
-  padding:18px 18px 10px;
+  padding:20px 20px 10px;
   border-bottom:1px solid rgba(245,225,180,0.18);
   text-align:center;
 }
 .modal-title{
   margin:0;
-  font-size:18px;
-  letter-spacing:0.1em;
+  font-size:20px;
+  font-weight:900;
+  letter-spacing:0.12em;
   text-transform:uppercase;
 }
 
+/* Body is left-justified */
 .modal-body{
-  padding:16px 18px 10px;
-  text-align:center;            /* ✅ centers rules text */
+  padding:18px 22px 10px;
+  text-align:left;
 }
 
+/* Only HOW TO PLAY (and other "headline" uses) is centered via class */
 .modal-outcome{
   margin:0 0 14px;
   font-weight:900;
 }
+.modal-outcome.center-headline{
+  text-align:center;
+}
 
-/* grid stays readable */
+/* Grid */
 .modal-grid{
   display:flex;
   flex-direction:column;
   gap:10px;
-  margin-top:10px;
-  text-align:left;              /* rows are left/right aligned */
+  margin-top:12px;
 }
 
 .row{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:12px
+  padding:12px;
+  border-radius:14px;
+  border:1px solid rgba(245,225,180,0.18);
+  background:rgba(10,8,6,0.35);
+}
+
+.row .label{
+  color:var(--muted);
+  font-weight:900;
+}
+
+.row .value{
+  font-weight:900;
+  text-align:right;
+}
+
+/* Notes stacked */
+#noteValue{
+  white-space:pre-line;
+  line-height:1.45;
+}
+
+/* Continue button: bigger + centered */
+.modal-footer{
+  padding:18px 22px 22px;
+  display:flex;
+  justify-content:center;
+}
+
+.btn-primary{
+  width:100%;
+  max-width:540px;
+  height:66px;
+  border-radius:16px;
+  border:1px solid rgba(245,225,180,0.55);
+  background:rgba(40,120,70,0.95);
+  color:#ffffff;
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+
+.btn-primary:active{
+  transform:translateY(1px);
+}
+
+.guides-on .reticle{
+  border-color: rgba(255,255,255,0.55);
+}
