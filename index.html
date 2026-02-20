@@ -11,19 +11,18 @@
 
 <body>
   <main id="huntRoot" class="hunt-root" aria-label="Hunting Minigame">
-
-    <!-- Top HUD + Back -->
+    <!-- HUD / NAV -->
     <div class="hunt-hud" aria-label="HUD">
       <button id="backBtn" class="nav-btn" type="button" aria-label="Back">BACK</button>
 
-      <div class="hudItem"><span class="label">FOOD</span>: <span id="foodHud" class="value">0 lbs</span></div>
-      <div class="hudItem"><span class="label">AMMO</span>: <span id="ammoHudTop" class="value">7</span></div>
-      <div class="hudItem"><span class="label">DAYS</span>: <span id="dayHud" class="value">1</span></div>
+      <div class="hudItem"><span class="label">FOOD</span> <span id="foodHud" class="value">0 lbs</span></div>
+      <div class="hudItem"><span class="label">AMMO</span> <span id="ammoHudTop" class="value">7</span></div>
+      <div class="hudItem"><span class="label">DAYS</span> <span id="dayHud" class="value">1</span></div>
     </div>
 
     <div class="layer layer-bg" aria-hidden="true"></div>
 
-    <!-- Target runner mounts here -->
+    <!-- targets mount into this layer -->
     <div class="layer layer-targets" aria-hidden="true"></div>
 
     <div class="layer layer-ui" aria-hidden="true">
@@ -45,7 +44,7 @@
       </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Modal (opens on load) -->
     <div id="modalBackdrop" class="modal-backdrop modal-open">
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
@@ -55,8 +54,8 @@
         <div class="modal-body">
           <p id="huntRules" class="modal-outcome">
             Shoot moving targets to collect food.<br/>
-            You have limited ammo.<br/>
             Ammo is only spent when you press FIRE.<br/>
+            When you run out of ammo, the hunt ends.<br/>
             Click "Start Hunt" to begin.
           </p>
         </div>
@@ -66,10 +65,9 @@
         </div>
       </div>
     </div>
-
   </main>
 
-  <!-- CRITICAL FIX: target runner MUST load before hunt_main -->
+  <!-- IMPORTANT: runner must load BEFORE hunt_main -->
   <script src="target_runner.js"></script>
   <script src="hunt_main.js"></script>
 </body>
