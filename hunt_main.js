@@ -2,6 +2,9 @@
 (() => {
   "use strict";
 
+  const qs = new URLSearchParams(location.search);
+  const DEBUG = qs.get("debug") === "1";
+
   const modalBackdrop = document.getElementById("modalBackdrop");
   const continueBtn = document.getElementById("continueBtn");
   const fireBtn = document.getElementById("fireBtn");
@@ -9,16 +12,17 @@
   const foodHud = document.getElementById("foodHud");
   const ammoHudTop = document.getElementById("ammoHudTop");
   const dayHud = document.getElementById("dayHud");
-
   const backBtn = document.getElementById("backBtn");
 
   const debugRow = document.getElementById("debugRow");
-  const resetBtn = document.getElementById("resetBtn");
   const toggleGuidesBtn = document.getElementById("toggleGuidesBtn");
   const hudText = document.getElementById("hudText");
 
-  const qs = new URLSearchParams(location.search);
-  const DEBUG = qs.get("debug") === "1";
+  const huntOutcome = document.getElementById("huntOutcome");
+  const targetValue = document.getElementById("targetValue");
+  const meatValue = document.getElementById("meatValue");
+  const ammoValue = document.getElementById("ammoValue");
+  const noteValue = document.getElementById("noteValue");
 
   let ammo = 7;
   let food = 0;
@@ -59,6 +63,9 @@
   function stopTargets(){
     if (window.vc_targets && typeof window.vc_targets.stop === "function") window.vc_targets.stop();
   }
+  function nextTarget(){
+    if (window.vc_targets && typeof window.vc_targets.reset === "function") window.vc_targets.reset();
+  }
 
   function updateHud(){
     if (foodHud) foodHud.textContent = `${food} lbs`;
@@ -70,8 +77,7 @@
     modalBackdrop.classList.add("modal-open");
     modalBackdrop.classList.remove("modal-closed");
     gameActive = false;
-    stopTargets();
-    stopBGM();
+    // keep targets running behind if you want, but modal blocks input either way
   }
 
   function closeModal(){
@@ -79,9 +85,8 @@
     modalBackdrop.classList.add("modal-closed");
     gameActive = true;
 
-    // iOS: Start Hunt click is the gesture that unlocks audio.
-    playBGM();
-    startTargets();
+    // resume / spawn next
+    nextTarget();
     updateHud();
   }
 
@@ -99,47 +104,74 @@
     setDebug(guidesOn ? "Guides ON" : "Guides OFF");
   }
 
+  function showShotModal(result){
+    const { animal, outcome, deltaPct, meat } = result;
+
+    huntOutcome.textContent = `Outcome: ${outcome}`;
+    targetValue.textContent = animal;
+    meatValue.textContent = `${meat}`;
+    ammoValue.textContent = "1";
+    noteValue.textContent = `delta ${Number(deltaPct).toFixed(1)}%`;
+
+    continueBtn.textContent = (ammo <= 0) ? "Done" : "Continue";
+
+    openModal();
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     if (debugRow) debugRow.hidden = !DEBUG;
+
+    // First modal = instructions
+    huntOutcome.textContent = "Outcome: —";
+    targetValue.textContent = "—";
+    meatValue.textContent = "—";
+    ammoValue.textContent = "—";
+    noteValue.textContent = "Tap Start Hunt";
+    continueBtn.textContent = "Start Hunt";
 
     openModal();
     updateHud();
 
-    if (continueBtn) continueBtn.addEventListener("click", closeModal);
-    if (backBtn) backBtn.addEventListener("click", goBack);
-
-    if (resetBtn) resetBtn.addEventListener("click", () => {
-      if (window.vc_targets && typeof window.vc_targets.reset === "function") window.vc_targets.reset();
-      setDebug("Reset Pass");
+    // iOS audio unlock happens here
+    continueBtn.addEventListener("click", () => {
+      if (!gameActive) {
+        playBGM();
+        startTargets();
+      }
+      closeModal();
     });
 
+    backBtn.addEventListener("click", goBack);
     if (toggleGuidesBtn) toggleGuidesBtn.addEventListener("click", toggleGuides);
 
-    // FIRE
-    if (fireBtn) fireBtn.addEventListener("click", () => {
+    // Shot result from runner
+    window.addEventListener("vc:shot_result", (e) => {
+      const res = e.detail || {};
+      // Add meat to meter here
+      food += Number(res.meat || 0);
+      updateHud();
+
+      if (DEBUG) setDebug(`${res.outcome} (${res.animal}) +${res.meat}`);
+
+      showShotModal(res);
+    });
+
+    // FIRE: spends ammo no matter what, then asks runner to evaluate
+    fireBtn.addEventListener("click", () => {
       if (!gameActive) return;
       if (ammo <= 0) return;
 
-      // Locked rule: ammo only spent on FIRE
-      ammo--;
+      ammo -= 1;
       updateHud();
 
       playGunshot();
       window.dispatchEvent(new CustomEvent("vc:shoot"));
 
-      if (ammo <= 0){
-        setTimeout(() => {
-          openModal();
-          const rules = document.getElementById("huntRules");
-          if (rules) rules.innerHTML = "You are out of ammo.<br/>Hunt ended.";
-          if (continueBtn) continueBtn.style.display = "none";
-        }, 450);
+      if (ammo <= 0) {
+        // runner still reports the shot result; modal will show, but no more shots after
+        setDebug("AMMO 0");
       }
     });
-
-    // Optional feedback events from runner (debug only)
-    window.addEventListener("vc:hit", (e) => DEBUG && setDebug(`HIT: ${e.detail.animal}`));
-    window.addEventListener("vc:miss", (e) => DEBUG && setDebug(`MISS: ${e.detail.animal}`));
 
     setDebug("BOOT OK");
   });
