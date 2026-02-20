@@ -18,7 +18,7 @@
   const toggleGuidesBtn = document.getElementById("toggleGuidesBtn");
   const hudText = document.getElementById("hudText");
 
-  const huntOutcome = document.getElementById("huntOutcome"); // headline line
+  const huntOutcome = document.getElementById("huntOutcome");
   const targetValue = document.getElementById("targetValue");
   const meatValue = document.getElementById("meatValue");
   const ammoValue = document.getElementById("ammoValue");
@@ -101,121 +101,29 @@
     gameActive = true;
   }
 
-  function ammoRowEl(){
-    // safest: ammoValue is inside .row in your modal grid
-    return ammoValue ? ammoValue.closest(".row") : null;
-  }
-
-  function setHeadlineCentered(on){
-    if (!huntOutcome) return;
-    huntOutcome.classList.toggle("center-headline", !!on);
-    // allow 2-line headline when we use \n
-    huntOutcome.style.whiteSpace = "pre-line";
-  }
-
-  // --- ADDITIVE FIXES (kept inside this file, no stripping) ---
-
-  function removeNoteLabelIfPresent(){
-    if (!modalBackdrop) return;
-
-    // If there is an explicit label element like #noteLabel, kill it.
-    const byId =
-      modalBackdrop.querySelector("#noteLabel") ||
-      modalBackdrop.querySelector("[data-label='note']") ||
-      modalBackdrop.querySelector("[data-row='note'] .label");
-
-    if (byId && byId.textContent && byId.textContent.trim().toLowerCase() === "note") {
-      byId.textContent = "";
-      byId.style.display = "none";
-      return;
-    }
-
-    // Otherwise, defensively scan typical label classes in the modal.
-    const labelCandidates = modalBackdrop.querySelectorAll(".label, .row-label, .key, .k");
-    for (const el of labelCandidates) {
-      if (!el || !el.textContent) continue;
-      if (el.textContent.trim().toLowerCase() === "note") {
-        el.textContent = "";
-        el.style.display = "none";
-      }
-    }
-  }
-
-  function leftJustifyModalBody(){
-    // Ensure multiline + left-aligned body/value text so nothing looks skewed.
-    if (targetValue){
-      targetValue.style.textAlign = "left";
-      targetValue.style.whiteSpace = "pre-line";
-    }
-    if (meatValue){
-      meatValue.style.textAlign = "left";
-      meatValue.style.whiteSpace = "pre-line";
-    }
-    if (ammoValue){
-      ammoValue.style.textAlign = "left";
-      ammoValue.style.whiteSpace = "pre-line";
-    }
-    if (noteValue){
-      noteValue.style.textAlign = "left";
-      noteValue.style.whiteSpace = "pre-line";
-    }
-  }
-
-  function beefUpContinueButton(){
-    if (!continueBtn) return;
-    // Make it larger + not shoved into the left corner.
-    continueBtn.style.fontSize = "18px";
-    continueBtn.style.padding = "14px 22px";
-    continueBtn.style.minWidth = "190px";
-    continueBtn.style.display = "inline-block";
-    continueBtn.style.marginLeft = "auto";
-    continueBtn.style.marginRight = "auto";
-
-    // If the parent is flex, this centers it.
-    const p = continueBtn.parentElement;
-    if (p && getComputedStyle(p).display.includes("flex")) {
-      continueBtn.style.alignSelf = "center";
-    }
-  }
-
-  function applyModalFixes(){
-    // Call this whenever the modal is shown to keep it consistent.
-    removeNoteLabelIfPresent();
-    leftJustifyModalBody();
-    beefUpContinueButton();
-  }
-
-  // --- end additive fixes ---
-
+  // ---------- Modal screens
   function showRulesModal(){
     pendingEnd = false;
 
-    // Center only THE HUNT + HOW TO PLAY lines
-    setHeadlineCentered(true);
-    huntOutcome.textContent = "THE HUNT\nHOW TO PLAY";
-
+    huntOutcome.textContent = "How To Play";
     targetValue.textContent = "Aim at the reticle";
     meatValue.textContent = "Earn meat on hits";
-    noteValue.textContent =
-      "Press FIRE as the target crosses the reticle.\n\n" +
-      "Closer to the center = better hit.\n\n" +
-      "Ammo is only spent when you press FIRE.";
 
-    // Hide ammo row for rules only
-    const ar = ammoRowEl();
-    if (ar) ar.style.display = "none";
+    // ✅ Ammunition used row stays, but for Rules we show a friendly dash
+    ammoValue.textContent = "—";
+
+    noteValue.textContent =
+      "Press FIRE as the target crosses the reticle.\n" +
+      "Closer to the center = better hit.\n" +
+      "Ammo is only spent when you press FIRE.";
 
     continueBtn.textContent = huntStarted ? "Resume Hunt" : "Start Hunt";
     continueBtn.style.display = "";
 
     modalOpen();
-    applyModalFixes();
   }
 
   function showShotModal(res){
-    // Shot modal headline not centered (you only wanted How To Play centered)
-    setHeadlineCentered(false);
-
     const animalKey = String(res.animal || "").toLowerCase();
     const animalName = DISPLAY[animalKey] || "Target";
 
@@ -223,9 +131,7 @@
     targetValue.textContent = animalName;
     meatValue.textContent = `${Number(res.meat || 0)} lbs`;
 
-    // Ammo row visible + used = 1
-    const ar = ammoRowEl();
-    if (ar) ar.style.display = "flex";
+    // ✅ Ammunition used stays on shot modal
     ammoValue.textContent = "1";
 
     noteValue.textContent = DEBUG ? `delta ${Number(res.deltaPct || 0).toFixed(1)}%` : " ";
@@ -234,7 +140,6 @@
     continueBtn.style.display = "";
 
     modalOpen();
-    applyModalFixes();
   }
 
   function pct(n, d){
@@ -246,21 +151,17 @@
   function showEndResultsModal(reasonText){
     pendingEnd = true;
 
-    setHeadlineCentered(false);
-    huntOutcome.textContent = "Hunt Results";
-
-    targetValue.textContent = `Shots fired: ${shotsFired}/${STARTING_AMMO}`;
-    meatValue.textContent = `${meatTotal} lbs`;
-
-    // Ammo row visible + X/7
-    const ar = ammoRowEl();
-    if (ar) ar.style.display = "flex";
-    ammoValue.textContent = `${shotsFired} / ${STARTING_AMMO}`;
-
     const pPerfect = pct(resultCounts.perfect, shotsFired);
     const pGood    = pct(resultCounts.good, shotsFired);
     const pGraze   = pct(resultCounts.graze, shotsFired);
     const pMiss    = pct(resultCounts.miss, shotsFired);
+
+    huntOutcome.textContent = "Hunt Results";
+    targetValue.textContent = `Shots fired: ${shotsFired}/${STARTING_AMMO}`;
+    meatValue.textContent = `${meatTotal} lbs`;
+
+    // ✅ Ammunition used stays on summary and shows X/7
+    ammoValue.textContent = `${shotsFired} / ${STARTING_AMMO}`;
 
     noteValue.textContent =
       `${reasonText}\n` +
@@ -273,7 +174,6 @@
     continueBtn.style.display = "";
 
     modalOpen();
-    applyModalFixes();
   }
 
   function hardEndAndExit(){
@@ -359,9 +259,6 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     if (debugRow) debugRow.hidden = !DEBUG;
-
-    // One-time UI fixes (additive)
-    beefUpContinueButton();
 
     showRulesModal();
     updateHud();
