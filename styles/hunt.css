@@ -1,155 +1,269 @@
-/* ================= HUD / NAV (ADD) ================= */
+:root{
+  --hunt-bg-url: url("../assets/backgrounds/oregon-trail-hunting-minigame.webp");
 
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  --panel-bg: rgba(18,14,10,0.82);
+  --panel-border: rgba(245,225,180,0.35);
+  --text: rgba(245,235,215,0.95);
+  --muted: rgba(245,235,215,0.86);
+}
+
+[hidden]{ display:none !important; }
+*{ box-sizing:border-box; }
+
+html, body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  position:fixed;
+  inset:0;
+  overflow:hidden !important;
+  background:#000;
+  overscroll-behavior:none;
+  -webkit-overflow-scrolling:auto;
+  touch-action:none;
+}
+
+body{
+  color:var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.hunt-root{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100svh;
+  height:100dvh;
+  height:100vh;
+  overflow:hidden;
+  touch-action:none;
+}
+
+.layer{ position:absolute; inset:0; }
+
+/* stacking */
+.layer-bg{ z-index:0; }
+.layer-targets{ z-index:20; pointer-events:none; }
+.layer-ui{ z-index:56; pointer-events:none; }
+.layer-controls{ z-index:120; pointer-events:auto; }
+.modal-backdrop{ z-index:9999; }
+
+/* Background */
+.layer-bg{
+  background-image: var(--hunt-bg-url);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+/* Targets */
+.layer-targets{ overflow:hidden; }
+.target-sprite{
+  position:absolute;
+  left:0;
+  width:min(40vw, 520px);
+  height:auto;
+  transform:translate3d(-240px,0,0);
+  will-change:transform;
+  user-select:none;
+  -webkit-user-drag:none;
+  filter: drop-shadow(0 8px 12px rgba(0,0,0,0.35));
+}
+
+/* Reticle */
+.reticle{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:220px;
+  height:220px;
+  transform:translate(-50%,-50%);
+  border:2px solid rgba(240,235,220,0.35);
+  border-radius:999px;
+  opacity:0.9;
+}
+.reticle::before,
+.reticle::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  background:rgba(240,235,220,0.85);
+  box-shadow:0 0 6px rgba(0,0,0,0.55);
+}
+.reticle::before{ width:3px; height:220px; }
+.reticle::after{ width:220px; height:3px; }
+
+/* Controls */
+.layer-controls{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:center;
+  padding:
+    16px
+    calc(16px + var(--safe-right))
+    calc(28px + var(--safe-bottom))
+    calc(16px + var(--safe-left));
+  gap:12px;
+}
+
+.btn-fire{
+  width:min(420px, 92vw);
+  height:64px;
+  border-radius:14px;
+  border:1px solid rgba(245,225,180,0.55);
+  background:rgba(160,40,30,0.92);
+  color:rgba(255,255,255,0.98);
+  font-size:20px;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.btn-fire:active{ transform:translateY(1px); }
+
+.debug-row{
+  width:min(720px,92vw);
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+
+.btn-secondary{
+  height:42px;
+  padding:0 14px;
+  border-radius:12px;
+  border:1px solid rgba(245,225,180,0.35);
+  background:rgba(30,24,18,0.72);
+  color:rgba(245,235,215,0.95);
+  font-size:14px;
+  font-weight:900;
+}
+
+.hud-text{
+  font-size:14px;
+  font-weight:800;
+  color:rgba(245,235,215,0.95);
+}
+
+/* HUD / NAV */
 .hunt-hud{
   position:absolute;
-  top: calc(14px + var(--safe-top));
-  left: calc(14px + var(--safe-left));
-  right: calc(14px + var(--safe-right));
-
+  top: calc(10px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
   display:flex;
+  gap:16px;
   align-items:center;
-  gap:12px;
-
-  z-index:130;
+  background:rgba(12,10,8,0.70);
+  border-radius:16px;
+  padding:10px 14px;
+  z-index:200;
+  box-shadow:0 6px 18px rgba(0,0,0,0.25);
   pointer-events:auto;
 }
 
 .hudItem{
-  display:flex;
-  align-items:baseline;
-  gap:8px;
-
-  padding:10px 12px;
-  border-radius:14px;
-
-  border:1px solid rgba(245,225,180,0.18);
-  background:rgba(10,8,6,0.35);
-  box-shadow:0 10px 22px rgba(0,0,0,0.28);
-
+  pointer-events:none;
+  color:#fffbe6;
   font-weight:900;
-  letter-spacing:0.06em;
-  text-transform:uppercase;
+  font-size:14px;
+  letter-spacing:0.08em;
+  white-space:nowrap;
 }
 
 .hudItem .label{
-  color:var(--muted);
+  color:#e9e3ce;
+  margin-right:6px;
   font-size:12px;
-}
-
-.hudItem .value{
-  color:var(--text);
-  font-size:13px;
+  font-weight:800;
+  text-transform:uppercase;
 }
 
 .nav-btn{
-  padding:10px 14px;
-  border-radius:14px;
-
-  border:1px solid rgba(245,225,180,0.50);
-  background:rgba(18,14,10,0.78);
-  color:var(--text);
-
-  font-size:12px;
-  font-weight:1000;
-  letter-spacing:0.10em;
-  text-transform:uppercase;
-
-  box-shadow:0 10px 22px rgba(0,0,0,0.35);
-  cursor:pointer;
-
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-/* ================= CONTROLS (ADD) ================= */
-
-.layer-controls{
-  position:absolute;
-  inset:0;
-}
-
-/* 44% from bottom + safe area */
-.btn-fire{
-  position:absolute;
-  left: calc(22px + var(--safe-left));
-  bottom: calc(44vh + var(--safe-bottom));
-
-  width: min(360px, 56vw);
-  height: 78px;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  background:#b30000;
-  color:#fff;
-
-  border:2px solid rgba(0,0,0,0.55);
-  border-radius:16px;
-
-  font-size:28px;
-  font-weight:1000;
-  letter-spacing:0.12em;
-  text-transform:uppercase;
-
-  box-shadow:
-    0 12px 26px rgba(0,0,0,0.42),
-    inset 0 2px 0 rgba(255,255,255,0.16);
-
-  cursor:pointer;
-
-  z-index:140;
-
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  user-select:none;
-}
-
-.btn-fire:active{
-  transform: translateY(2px);
-  filter: brightness(0.95);
-}
-
-/* Debug row (optional) */
-.debug-row{
-  position:absolute;
-  left: calc(14px + var(--safe-left));
-  bottom: calc(14px + var(--safe-bottom));
-
-  display:flex;
-  align-items:center;
-  gap:12px;
-
-  padding:10px 12px;
-  border-radius:14px;
-  border:1px solid rgba(245,225,180,0.18);
-  background:rgba(10,8,6,0.35);
-
-  z-index:141;
-}
-
-.btn-secondary{
-  padding:10px 12px;
-  border-radius:14px;
-
-  border:1px solid rgba(245,225,180,0.35);
-  background:rgba(18,14,10,0.65);
-  color:var(--text);
-
-  font-size:12px;
+  pointer-events:auto;
+  height:38px;
+  padding:0 12px;
+  border-radius:12px;
+  border:1px solid rgba(245,225,180,0.45);
+  background:rgba(30,24,18,0.78);
+  color:rgba(245,235,215,0.98);
   font-weight:900;
   letter-spacing:0.08em;
   text-transform:uppercase;
+}
+.nav-btn:active{ transform:translateY(1px); }
 
-  cursor:pointer;
+/* Modal */
+.modal-backdrop{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:
+    calc(20px + var(--safe-top))
+    calc(16px + var(--safe-right))
+    calc(20px + var(--safe-bottom))
+    calc(16px + var(--safe-left));
+  background:rgba(0,0,0,0.72);
+  backdrop-filter:blur(2px);
+}
+.modal-backdrop.modal-closed{ opacity:0; pointer-events:none; }
+.modal-backdrop.modal-open{ opacity:1; pointer-events:auto; }
 
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+.modal-panel{
+  width:min(720px,94vw);
+  border-radius:18px;
+  border:1px solid var(--panel-border);
+  background:var(--panel-bg);
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  overflow:hidden;
 }
 
-.hud-text{
-  font-weight:900;
-  letter-spacing:0.06em;
+/* ✅ Center title + body text for rules + results */
+.modal-header{
+  padding:18px 18px 10px;
+  border-bottom:1px solid rgba(245,225,180,0.18);
+  text-align:center;
+}
+.modal-title{
+  margin:0;
+  font-size:18px;
+  letter-spacing:0.1em;
   text-transform:uppercase;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.65);
 }
+
+.modal-body{
+  padding:16px 18px 10px;
+  text-align:center;            /* ✅ centers rules text */
+}
+
+.modal-outcome{
+  margin:0 0 14px;
+  font-weight:900;
+}
+
+/* grid stays readable */
+.modal-grid{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:10px;
+  text-align:left;              /* rows are left/right aligned */
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px
