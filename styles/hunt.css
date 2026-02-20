@@ -10,6 +10,13 @@
   --panel-border: rgba(245,225,180,0.35);
   --text: rgba(245,235,215,0.95);
   --muted: rgba(245,235,215,0.86);
+
+  /* iOS Safari/Chrome URL + toolbar overlap buffer (scroll is locked, so we must lift UI) */
+  --vc-toolbar-lift: 140px;
+
+  /* FIRE pill sizing */
+  --vc-fire-height: 84px;
+  --vc-fire-max-width: 640px;
 }
 
 *{ box-sizing:border-box; }
@@ -223,43 +230,45 @@ body{
   transform:translateY(1px);
 }
 
-/* ================= FIRE BUTTON (Phase 1 Fix) =================
-   Purpose: style + place the existing #fireBtn.btn-fire so it is
-   not the tiny default Safari button in the top-left.
-   This does NOT change any HUD logic, ammo logic, scoring, or audio wiring.
+/* ================= FIRE BUTTON (Requested Fix) =================
+   - Wide pill (nearly left-to-right)
+   - Lifted up above iOS Safari/Chrome URL/toolbars (scroll is locked)
+   - Does NOT touch HUD logic, scoring, ammo, audio
 */
 .btn-fire{
   position:absolute;
-  right: calc(22px + var(--safe-right));
-  bottom: calc(22px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
 
-  width: clamp(132px, 22vw, 240px);
-  height: clamp(64px, 10vw, 96px);
+  /* Lift it above the iOS URL/chrome overlap zone */
+  bottom: calc(18px + var(--safe-bottom) + var(--vc-toolbar-lift));
 
-  border-radius: 18px;
+  width: min(94vw, var(--vc-fire-max-width));
+  height: var(--vc-fire-height);
+
+  border-radius: 999px;
   border: 1px solid rgba(245,225,180,0.70);
   background: rgba(165, 40, 40, 0.92);
   color: rgba(255,255,255,0.98);
 
   font-weight: 900;
-  font-size: clamp(18px, 2.8vw, 26px);
-  letter-spacing: 0.10em;
+  font-size: clamp(18px, 3.2vw, 28px);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 
   box-shadow:
-    0 12px 26px rgba(0,0,0,0.55),
+    0 14px 28px rgba(0,0,0,0.55),
     inset 0 1px 0 rgba(255,255,255,0.22);
 
   user-select:none;
   -webkit-user-select:none;
   -webkit-tap-highlight-color: transparent;
-
   touch-action: manipulation;
   cursor: pointer;
 }
 
 .btn-fire:active{
-  transform: translateY(1px);
+  transform: translateX(-50%) translateY(1px);
 }
 
 .btn-fire:focus{
