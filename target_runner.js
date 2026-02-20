@@ -13,6 +13,22 @@
     bear:     { left: "assets/targets/bear-left-facing.webp",     right: "assets/targets/bear-right-facing.webp" }
   };
 
+  // Meat values (base). Tune later if you want.
+  const MEAT_BASE = {
+    squirrel: 8,
+    rabbit:   18,
+    deer:     65,
+    bear:     140
+  };
+
+  // Quality multipliers
+  const MEAT_MULT = {
+    "Perfect hit": 1.00,
+    "Good hit":    0.75,
+    "Graze":       0.40,
+    "Miss":        0.00
+  };
+
   const WEIGHTS = [
     { type: "squirrel", w: 0.45 },
     { type: "rabbit",   w: 0.30 },
@@ -27,19 +43,22 @@
     bear:     260
   };
 
-  const TRACK_Y_VH = 52; // tune if needed
+  const TRACK_Y_VH = 52;
+
+  // Ring thresholds (percent of target width from center)
+  const THRESH = { perfect: 10, good: 25, graze: 40 };
 
   let img = null;
   let raf = 0;
   let running = false;
 
-  let direction = 1; // 1 L->R, -1 R->L
-  let x = -260;
+  let direction = 1;
+  let x = -280;
   let tPrev = 0;
 
   let currentAnimal = "squirrel";
   let passActive = false;
-  let shotTaken = false;
+  let shotLocked = false;
 
   function viewportW(){ return window.innerWidth || 1024; }
 
@@ -68,24 +87,51 @@
     currentAnimal = pickWeighted();
     direction = (Math.random() < 0.5) ? 1 : -1;
 
-    shotTaken = false;
+    shotLocked = false;
     passActive = true;
 
     img.src = (direction === 1) ? SPRITES[currentAnimal].right : SPRITES[currentAnimal].left;
 
     const w = viewportW();
-    x = (direction === 1) ? -280 : (w + 280);
+    x = (direction === 1) ? -320 : (w + 320);
     img.style.transform = `translate3d(${x}px,0,0)`;
   }
 
   function endPass(){
     passActive = false;
-    setTimeout(startPass, 380);
+    // next pass is triggered by hunt_main closing the modal via vc_targets.reset()
   }
 
   function reticleCenter(){
     const r = reticle.getBoundingClientRect();
     return { x: r.left + r.width/2, y: r.top + r.height/2 };
+  }
+
+  function targetCenter(){
+    const r = img.getBoundingClientRect();
+    return { rect: r, x: r.left + r.width/2, y: r.top + r.height/2 };
+  }
+
+  function scoreShot(){
+    const p = reticleCenter();
+    const t = targetCenter();
+
+    const dx = Math.abs(p.x - t.x);
+    const tw = t.rect.width || 200;
+    const deltaPct = (dx / tw) * 100;
+
+    let outcome = "Miss";
+    if (deltaPct <= THRESH.perfect) outcome = "Perfect hit";
+    else if (deltaPct <= THRESH.good) outcome = "Good hit";
+    else if (deltaPct <= THRESH.graze) outcome = "Graze";
+
+    const base = MEAT_BASE[currentAnimal] || 0;
+    const mult = MEAT_MULT[outcome] ?? 0;
+    const meat = Math.round(base * mult);
+
+    window.dispatchEvent(new CustomEvent("vc:shot_result", {
+      detail: { animal: currentAnimal, outcome, deltaPct, meat }
+    }));
   }
 
   function step(now){
@@ -100,9 +146,10 @@
 
       const w = viewportW();
       const rect = img.getBoundingClientRect();
-      if ((direction === 1 && rect.left > w + 160) || (direction === -1 && rect.right < -160)){
-        // No-shot: no ammo spent (handled by hunt_main), just end pass
+      if ((direction === 1 && rect.left > w + 180) || (direction === -1 && rect.right < -180)) {
+        // offscreen ends pass; next pass will be spawned when modal is closed
         endPass();
+        startPass(); // keep motion continuous even if player hesitates
       }
     }
 
@@ -111,18 +158,10 @@
 
   function handleShoot(){
     if (!running || !passActive || !img) return;
-    if (shotTaken) return;
-    shotTaken = true;
+    if (shotLocked) return;
+    shotLocked = true;
 
-    const p = reticleCenter();
-    const r = img.getBoundingClientRect();
-    const hit = (p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom);
-
-    window.dispatchEvent(new CustomEvent(hit ? "vc:hit" : "vc:miss", {
-      detail: { animal: currentAnimal, direction }
-    }));
-
-    // end pass immediately after one shot
+    scoreShot();
     endPass();
   }
 
@@ -140,12 +179,12 @@
       cancelAnimationFrame(raf);
       window.removeEventListener("vc:shoot", handleShoot);
       passActive = false;
-      shotTaken = false;
+      shotLocked = false;
       if (img && img.parentNode) img.parentNode.removeChild(img);
       img = null;
     },
     reset(){
-      if (!running) return;
+      // called when modal closes to spawn next pass
       startPass();
     }
   };
