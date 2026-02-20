@@ -1,5 +1,4 @@
 // hunt_main.js
-// Main game wiring for Hunt module: Modal, audio, targets, HUD, navigation
 (() => {
   "use strict";
 
@@ -24,76 +23,77 @@
   let ammo = 7;
   let food = 0;
   let days = 1;
-  let gameActive = false;
 
+  let gameActive = false;
   let bgm = null;
 
-  function safe_play(audio) {
-    try { audio.play().catch(()=>{}); } catch (_) {}
+  function setDebug(msg){
+    if (!DEBUG) return;
+    if (hudText) hudText.textContent = msg;
   }
 
-  function playBGM() {
-    if (!bgm) {
+  function safePlay(a){
+    try { a.play().catch(()=>{}); } catch(_) {}
+  }
+
+  function playBGM(){
+    if (!bgm){
       bgm = new Audio("assets/audio/versecraft-hunting-mini-game-theme.mp3");
       bgm.loop = true;
       bgm.volume = 0.75;
     }
-    safe_play(bgm);
+    safePlay(bgm);
   }
 
-  function stopBGM() { if (bgm) bgm.pause(); }
+  function stopBGM(){ if (bgm) bgm.pause(); }
 
-  function playGunshot() {
+  function playGunshot(){
     const sfx = new Audio("assets/audio/gun_shot_single_action_rifle.wav");
     sfx.volume = 1.0;
-    safe_play(sfx);
+    safePlay(sfx);
   }
 
-  function startTargets() {
+  function startTargets(){
     if (window.vc_targets && typeof window.vc_targets.start === "function") window.vc_targets.start();
   }
-
-  function stopTargets() {
+  function stopTargets(){
     if (window.vc_targets && typeof window.vc_targets.stop === "function") window.vc_targets.stop();
   }
 
-  function updateHud() {
-    if (foodHud) foodHud.textContent = food + " lbs";
+  function updateHud(){
+    if (foodHud) foodHud.textContent = `${food} lbs`;
     if (ammoHudTop) ammoHudTop.textContent = String(ammo);
     if (dayHud) dayHud.textContent = String(days);
   }
 
-  function openModal() {
+  function openModal(){
     modalBackdrop.classList.add("modal-open");
     modalBackdrop.classList.remove("modal-closed");
     gameActive = false;
-    stopBGM();
     stopTargets();
+    stopBGM();
   }
 
-  function closeModal() {
+  function closeModal(){
     modalBackdrop.classList.remove("modal-open");
     modalBackdrop.classList.add("modal-closed");
     gameActive = true;
+
+    // iOS: Start Hunt click is the gesture that unlocks audio.
     playBGM();
     startTargets();
     updateHud();
   }
 
-  function goBack() {
+  function goBack(){
     const ret = qs.get("return");
     if (ret) { location.href = ret; return; }
     if (history.length > 1) { history.back(); return; }
     location.href = "/";
   }
 
-  function setDebug(msg) {
-    if (!DEBUG) return;
-    if (hudText) hudText.textContent = msg;
-  }
-
   let guidesOn = false;
-  function toggleGuides() {
+  function toggleGuides(){
     guidesOn = !guidesOn;
     document.documentElement.classList.toggle("guides-on", guidesOn);
     setDebug(guidesOn ? "Guides ON" : "Guides OFF");
@@ -102,7 +102,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     if (debugRow) debugRow.hidden = !DEBUG;
 
-    // Always start blocked behind modal until Start Hunt
     openModal();
     updateHud();
 
@@ -116,27 +115,31 @@
 
     if (toggleGuidesBtn) toggleGuidesBtn.addEventListener("click", toggleGuides);
 
+    // FIRE
     if (fireBtn) fireBtn.addEventListener("click", () => {
       if (!gameActive) return;
       if (ammo <= 0) return;
 
       // Locked rule: ammo only spent on FIRE
-      playGunshot();
       ammo--;
       updateHud();
 
-      // Event hook (later: hit detection runner can listen)
+      playGunshot();
       window.dispatchEvent(new CustomEvent("vc:shoot"));
 
-      if (ammo <= 0) {
+      if (ammo <= 0){
         setTimeout(() => {
           openModal();
           const rules = document.getElementById("huntRules");
-          if (rules) rules.innerHTML = "You are out of ammo.<br>Hunt ended.<br>Reload the page to try again.";
+          if (rules) rules.innerHTML = "You are out of ammo.<br/>Hunt ended.";
           if (continueBtn) continueBtn.style.display = "none";
-        }, 500);
+        }, 450);
       }
     });
+
+    // Optional feedback events from runner (debug only)
+    window.addEventListener("vc:hit", (e) => DEBUG && setDebug(`HIT: ${e.detail.animal}`));
+    window.addEventListener("vc:miss", (e) => DEBUG && setDebug(`MISS: ${e.detail.animal}`));
 
     setDebug("BOOT OK");
   });
