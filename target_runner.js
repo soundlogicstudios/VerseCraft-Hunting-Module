@@ -110,6 +110,23 @@
     }));
   }
 
+  function updatePerfectZoneGlow(){
+    if (!passActive || !img || !reticle){
+      reticle.classList.remove("perfect-zone");
+      return;
+    }
+    const p = reticleCenter();
+    const t = targetCenter();
+    const dx = Math.abs(p.x - t.x);
+    const tw = t.rect.width || 200;
+    const deltaPct = (dx / tw) * 100;
+    if (deltaPct <= THRESH.perfect){
+      reticle.classList.add("perfect-zone");
+    } else {
+      reticle.classList.remove("perfect-zone");
+    }
+  }
+
   function step(now){
     if (!running) return;
     if (!tPrev) tPrev = now;
@@ -127,6 +144,8 @@
         startPass();
       }
     }
+
+    updatePerfectZoneGlow();
 
     raf = requestAnimationFrame(step);
   }
@@ -153,6 +172,7 @@
       window.removeEventListener("vc:shoot", handleShoot);
       passActive = false;
       shotLocked = false;
+      if (reticle) reticle.classList.remove("perfect-zone");
       if (img && img.parentNode) img.parentNode.removeChild(img);
       img = null;
     },
