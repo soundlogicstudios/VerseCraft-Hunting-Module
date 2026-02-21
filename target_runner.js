@@ -135,7 +135,7 @@
     const reticleY = rRect.top + rRect.height / 2;   // vertical center of crosshair
     const spriteH = img.getBoundingClientRect().height || img.offsetHeight || 0;
     // layer-targets has inset:0, so top is directly in viewport coordinates
-    img.style.top = (reticleY - spriteH) + "px";
+    img.style.top = (reticleY - spriteH - 40) + "px";
   }
 
   function step(now){
