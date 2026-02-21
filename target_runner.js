@@ -58,7 +58,7 @@
     img.decoding = "async";
     img.loading = "eager";
     img.draggable = false;
-    img.style.top = `${TRACK_Y_VH}vh`;
+    /* top is set dynamically each frame to pin the bottom edge to the reticle center Y */
     layer.appendChild(img);
   }
 
@@ -127,6 +127,17 @@
     }
   }
 
+  /* Pin the bottom edge of the target sprite to the vertical center of the reticle.
+     This runs every frame so it stays correct regardless of screen size or orientation. */
+  function alignTargetToReticle(){
+    if (!img || !reticle) return;
+    const rRect = reticle.getBoundingClientRect();
+    const reticleY = rRect.top + rRect.height / 2;   // vertical center of crosshair
+    const spriteH = img.getBoundingClientRect().height || img.offsetHeight || 0;
+    // layer-targets has inset:0, so top is directly in viewport coordinates
+    img.style.top = (reticleY - spriteH) + "px";
+  }
+
   function step(now){
     if (!running) return;
     if (!tPrev) tPrev = now;
@@ -136,6 +147,8 @@
     if (passActive && img){
       x += direction * SPEED[currentAnimal] * dt;
       img.style.transform = `translate3d(${x}px,0,0)`;
+
+      alignTargetToReticle();
 
       const w = viewportW();
       const rect = img.getBoundingClientRect();
