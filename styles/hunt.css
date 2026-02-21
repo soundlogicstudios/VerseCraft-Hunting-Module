@@ -82,13 +82,14 @@ body{
 .reticle{
   position:absolute;
   left:50%;
-  top:50%;
+  top:calc(50% + 32px);
   width:220px;
   height:220px;
   transform:translate(-50%,-50%);
   border:2px solid rgba(240,235,220,0.35);
   border-radius:999px;
   opacity:0.9;
+  transition: border-color 0.08s ease, box-shadow 0.08s ease;
 }
 .reticle::before,
 .reticle::after{
@@ -99,9 +100,28 @@ body{
   transform:translate(-50%,-50%);
   background:rgba(240,235,220,0.85);
   box-shadow:0 0 6px rgba(0,0,0,0.55);
+  transition: background 0.08s ease;
 }
 .reticle::before{ width:3px; height:220px; }
 .reticle::after{ width:220px; height:3px; }
+
+/* Perfect zone flash — added by JS when reticle is centered on target */
+@keyframes reticle-perfect-flash {
+  0%   { border-color: rgba(220,40,40,0.95); box-shadow: 0 0 18px 6px rgba(220,40,40,0.70); }
+  50%  { border-color: rgba(255,80,80,1.00); box-shadow: 0 0 30px 10px rgba(255,60,60,0.90); }
+  100% { border-color: rgba(220,40,40,0.95); box-shadow: 0 0 18px 6px rgba(220,40,40,0.70); }
+}
+
+.reticle.perfect-zone {
+  border-color: rgba(220,40,40,0.95);
+  box-shadow: 0 0 22px 7px rgba(220,40,40,0.75);
+  animation: reticle-perfect-flash 0.45s ease-in-out infinite;
+}
+
+.reticle.perfect-zone::before,
+.reticle.perfect-zone::after {
+  background: rgba(255,90,90,0.95);
+}
 
 /* ================= MODAL ================= */
 
