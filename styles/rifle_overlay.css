@@ -6,7 +6,7 @@
   /* Move up (negative values) and zoom in without affecting reticle */
   transform:
     translateX(-50%)
-    translateY(var(--vc-rifle-offset-y, -110px))
+    translateY(var(--vc-rifle-offset-y, -70px))
     scale(var(--vc-rifle-scale, 1.35));
 
   transform-origin: center bottom;
